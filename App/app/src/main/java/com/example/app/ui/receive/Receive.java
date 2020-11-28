@@ -415,6 +415,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                 break;
             case R.id.decodeButton:
                 decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                showToast("decode完成");
                 result.setText(textResult);
                 //pausePlayer(v);
                 break;
