@@ -184,17 +184,17 @@ public class Receive extends Fragment implements View.OnClickListener {
                 idx += 10;
 
                 byte[] bytes = new byte[pkg_len / 8];
-                for (int i = idx; i < idx + pkg_len; i+=8)
+                for (int i = 0; i < pkg_len/8; i++)
                 {
                     bytes[i] = 0;
                     for (int j = 0; j < 8; j++)
                     {
-                        bytes[i] += (byte)((int)msg_recv.charAt(i * 8 + j) << (7 - j));
+                        bytes[i] += (byte)((int)msg_recv.charAt(idx) << (7-j));
+                        idx++;
                     }
                 }
                 String frag = new String(bytes);
                 finalRes.append(frag);
-                idx += pkg_len;
             }
             textResult = finalRes.toString();
 
