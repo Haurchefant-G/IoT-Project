@@ -452,9 +452,22 @@ public class Receive extends Fragment implements View.OnClickListener {
                 onStopRecordClick();
                 break;
             case R.id.decodeButton:
-                decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
-                showToast("decode完成");
-                result.setText(textResult);
+                start.setEnabled(false);
+                stop.setEnabled(false);
+                play.setEnabled(false);
+                decodeButton.setEnabled(false);
+                Thread thread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        showToast("decode完成");
+                        result.setText(textResult);
+                        start.setEnabled(true);
+                        play.setEnabled(true);
+                        decodeButton.setEnabled(true);
+                    }
+                });
+                thread.start();
                 //pausePlayer(v);
                 break;
             case R.id.playRecord:
