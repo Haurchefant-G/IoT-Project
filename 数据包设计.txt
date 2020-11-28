@@ -5,3 +5,6 @@ header
 	数据包长度 10位  (payload)
 payload
 	二进制数据
+
+f1      f2
+6400 9600Hz
