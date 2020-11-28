@@ -36,7 +36,7 @@ public class Send extends Fragment {
     private static final int block_size=2880;//一个块2880采样点
     private static final int max_length=1024;//包长度
     private static final int interval_length=4;//包间隔
-    private static final int header_size = 8 + 4 + 10; //包头长度
+    private static final int header_size = 8 + 8 + 10; //包头长度
 
     public static Send newInstance() {
         return new Send();
@@ -62,6 +62,7 @@ public class Send extends Fragment {
         byte[] bArr = new byte[buff.remaining()];
         buff.get(bArr);
 
+        //分包
         int message_length = 8*bArr.length;
         int package_num = message_length/max_length;
         if (package_num*max_length != message_length) {
@@ -77,23 +78,55 @@ public class Send extends Fragment {
             for (int j=0; j<interval_length; j++){
                 encode_bits[cur++] = -1;
             }
+
             //创建表头
-            
-        }
+            //前导码
+            encode_bits[cur++] = 1;
+            encode_bits[cur++] = 0;
+            encode_bits[cur++] = 1;
+            encode_bits[cur++] = 0;
+            encode_bits[cur++] = 1;
+            encode_bits[cur++] = 0;
+            encode_bits[cur++] = 1;
+            encode_bits[cur++] = 0;
 
-
-        for(int i=0;i<bArr.length;i++) {
-            int code=(int)bArr[i];
+            //序列号
+            int code=i;
             for(int j=0;j<8;j++){
                 int bit=code&1;
-                encode_bits[i*8+7-j]=bit;
+                encode_bits[cur+7-j]=bit;
                 code=code>>1;
             }
+            cur+=8;
+
+            //数据包长度
+            int leng = max_length - 1;
+            if (i == package_num && i*max_length!=message_length) {
+                leng = message_length % max_length - 1;
+            }
+            code = leng;
+            for(int j=0;j<10;j++){
+                int bit=code&1;
+                encode_bits[cur+9-j]=bit;
+                code=code>>1;
+            }
+            cur+=10;
+
+            //写入payload
+            for (int j=0;j<leng;j++){
+                code=(int)bArr[i*max_length+j];
+                for(int k=0;k<8;k++){
+                    int bit=code&1;
+                    encode_bits[cur+7-k]=bit;
+                    code=code>>1;
+                }
+                cur+=8;
+            }
+
         }
+
         //设置保存数据的文件名
         String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/AudioProject/encoding/message.wav";
-
-
 
         //调用生成声音函数
         GenerateAudio(name,encode_bits);
