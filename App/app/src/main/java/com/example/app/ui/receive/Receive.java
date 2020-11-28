@@ -54,8 +54,8 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     String textResult = "";
 
-    private static final int f0=6400;//信号0为4500Hz
-    private static final int f1=9600;//信号1为4750Hz
+    private static final int f0=4500;//信号0为4500Hz
+    private static final int f1=4750;//信号1为4750Hz
     private static final int length = 1024;//一个傅里叶变换时间窗口1024
     private static final int rate = 48000;//采样率48000
 
@@ -107,6 +107,7 @@ public class Receive extends Fragment implements View.OnClickListener {
         start.setOnClickListener(this);
         stop.setOnClickListener(this);
         decodeButton.setOnClickListener(this);
+        //decodeButton.setEnabled(true);
         play.setOnClickListener(this);
     }
 
@@ -114,6 +115,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     {
         StringBuilder finalRes = new StringBuilder("");
         try {
+            //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
             WaveFileReader reader = new WaveFileReader(fileName);
             int[] data = reader.getData()[0];
             //傅里叶变换找到两个频率的强度
@@ -133,8 +135,16 @@ public class Receive extends Fragment implements View.OnClickListener {
             }
             //寻找起始点
             int start_length=0;
-            double base=10.0;
+            double base=5.0;
+
+            double max0 = 0.0, max1 = 0.0; //辅助设置阈值
             for(int i=0;i<fftResult.length;i++){
+                if (max0 < fftResult[i][0]) {
+                    max0 = fftResult[i][0];
+                }
+                if (max1 < fftResult[i][1]) {
+                    max1 = fftResult[i][1];
+                }
                 if(fftResult[i][0]<base&&fftResult[i][1]<base){
                     start_length++;
                 }
