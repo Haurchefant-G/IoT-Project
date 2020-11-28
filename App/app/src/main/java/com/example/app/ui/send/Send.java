@@ -46,7 +46,7 @@ public class Send extends Fragment implements View.OnClickListener {
     private static final int header_size = 8 + 8 + 10; //包头长度
 
 
-    private int[] bits; //payload 01序列
+    private char[] bits; //payload 01序列
 
     public void showToast(CharSequence text) {
         if(mToast != null) {
@@ -89,12 +89,12 @@ public class Send extends Fragment implements View.OnClickListener {
         byte[] bArr = new byte[buff.remaining()];
         buff.get(bArr);
 
-        bits = new int[8*bArr.length];
+        bits = new char[8*bArr.length];
         for(int i=0;i<bArr.length;i++) {
             int code=(int)bArr[i];
             for(int j=0;j<8;j++){
                 int bit=code&1;
-                bits[i*8+7-j]=bit;
+                bits[i*8+7-j]= (char)(bit+'0');
                 code=code>>1;
             }
         }
@@ -110,7 +110,7 @@ public class Send extends Fragment implements View.OnClickListener {
         int[] encode_bits = new int[array_size];
         int cur = 0;
 
-        for (int i=0; i<= package_num; i++){
+        for (int i=0; i< package_num; i++){
             //创建间隔
             for (int j=0; j<interval_length; j++){
                 encode_bits[cur++] = -1;
@@ -137,11 +137,11 @@ public class Send extends Fragment implements View.OnClickListener {
             cur+=8;
 
             //数据包长度
-            int leng = max_length - 1;
-            if (i == package_num && i*max_length!=message_length) {
-                leng = message_length % max_length - 1;
+            int leng = max_length;
+            if (i+1 == package_num && i*max_length!=message_length) {
+                leng = message_length % max_length;
             }
-            code = leng;
+            code = leng - 1;
             for(int j=0;j<10;j++){
                 int bit=code&1;
                 encode_bits[cur+9-j]=bit;
@@ -150,8 +150,8 @@ public class Send extends Fragment implements View.OnClickListener {
             cur+=10;
 
             //写入payload
-            for (int j=0;j<leng;j++){
-                code=(int)bArr[i*max_length+j];
+            for (int j=0;j<leng/8;j++){
+                code=(int)bArr[i*max_length/8+j];
                 for(int k=0;k<8;k++){
                     int bit=code&1;
                     encode_bits[cur+7-k]=bit;
@@ -163,7 +163,7 @@ public class Send extends Fragment implements View.OnClickListener {
         }
 
         //设置保存数据的文件名
-        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/AudioProject/encoding/message.wav";
+        String name = getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav";
 
         //调用生成声音函数
         GenerateAudio(name,encode_bits);
@@ -292,7 +292,7 @@ public class Send extends Fragment implements View.OnClickListener {
 
     private void playWav(){
         //设置保存数据的文件名
-        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/AudioProject/encoding/message.wav";
+        String name = getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav";
         //调用生成声音函数
         MediaPlayer mMediaPlayer=new MediaPlayer();
         try{
@@ -328,7 +328,7 @@ public class Send extends Fragment implements View.OnClickListener {
                 //showToast("encode");
                 String i = input.getText().toString();
                 encode(i);
-                result.setText(bits.toString());
+                result.setText(String.valueOf(bits));
                 play.setEnabled(true);
                 break;
             case R.id.playButton:
