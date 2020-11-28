@@ -34,7 +34,7 @@ public class Send extends Fragment implements View.OnClickListener {
 
     private Toast mToast;
 
-    Button encode, play;
+    Button encodeButton, play;
     TextView input, result;
 
     private static final int SamplingRate = 48000;//采样率
@@ -73,11 +73,11 @@ public class Send extends Fragment implements View.OnClickListener {
         super.onActivityCreated(savedInstanceState);
         mViewModel = ViewModelProviders.of(this).get(SendViewModel.class);
         // TODO: Use the ViewModel
-        encode = getActivity().findViewById(R.id.encodeButton);
+        encodeButton = getActivity().findViewById(R.id.encodeButton);
         play = getActivity().findViewById(R.id.playButton);
         input = getActivity().findViewById(R.id.inputText);
         result = getActivity().findViewById(R.id.encodeText);
-        encode.setOnClickListener(this);
+        encodeButton.setOnClickListener(this);
         play.setOnClickListener(this);
         input.setOnClickListener(this);
     }
