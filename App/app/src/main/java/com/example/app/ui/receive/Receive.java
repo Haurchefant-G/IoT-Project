@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,9 +26,14 @@ import java.util.ArrayList;
 
 import static org.apache.commons.math3.util.FastMath.max;
 
-public class Receive extends Fragment {
+public class Receive extends Fragment implements View.OnClickListener {
 
     private ReceiveViewModel receiveViewModel;
+
+    private Toast mToast;
+
+    Button start, stop, decodeButton;
+    TextView receiveText, result;
 
     String text_result = "";
 
@@ -37,6 +43,15 @@ public class Receive extends Fragment {
     private static final int rate = 48000;//采样率48000
 
     private static final int step = 64;//滑动窗口为64个采样点
+
+    public void showToast(CharSequence text) {
+        if(mToast != null) {
+            mToast.cancel();
+            mToast = null;
+        }
+        mToast = Toast.makeText(getContext(), text, Toast.LENGTH_SHORT);
+        mToast.show();
+    }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -51,6 +66,19 @@ public class Receive extends Fragment {
 //            }
 //        });
         return root;
+    }
+
+    @Override
+    public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        start = getActivity().findViewById(R.id.startReceive);
+        stop = getActivity().findViewById(R.id.stopReceive);
+        decodeButton = getActivity().findViewById(R.id.decodeButton);
+        receiveText = getActivity().findViewById(R.id.receiveText);
+        result = getActivity().findViewById(R.id.decodeText);
+        start.setOnClickListener(this);
+        stop.setOnClickListener(this);
+        decodeButton.setOnClickListener(this);
     }
 
     public void decode(String fileName)
@@ -167,4 +195,28 @@ public class Receive extends Fragment {
         }
     }
 
+    @Override
+    public void onClick(View v) {
+        switch (v.getId())
+        {
+            case R.id.startReceive:
+                //showToast("encode");
+                start.setEnabled(false);
+                stop.setEnabled(true);
+                decodeButton.setEnabled(false);
+                break;
+            case R.id.stopReceive:
+                //startPlayer(v);
+                stop.setEnabled(false);
+                start.setEnabled(true);
+                decodeButton.setEnabled(true);
+                break;
+            case R.id.decodeButton:
+                result.setText("");
+                //pausePlayer(v);
+                break;
+            default:
+                break;
+        }
+    }
 }
