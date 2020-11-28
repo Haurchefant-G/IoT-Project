@@ -1,0 +1,7 @@
+preamble    
+	10101010
+header 
+	序号 4位
+	数据包长度 10位  (payload)
+payload
+	二进制数据
