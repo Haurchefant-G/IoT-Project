@@ -1,6 +1,10 @@
 package com.example.app.ui.receive;
 
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,6 +26,12 @@ import org.apache.commons.math3.transform.DftNormalization;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 
 import static org.apache.commons.math3.util.FastMath.max;
@@ -35,7 +45,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     Button start, stop, decodeButton;
     TextView receiveText, result;
 
-    String text_result = "";
+    String textResult = "";
 
     private static final int f0=6400;//信号0为4500Hz
     private static final int f1=9600;//信号1为4750Hz
@@ -43,6 +53,16 @@ public class Receive extends Fragment implements View.OnClickListener {
     private static final int rate = 48000;//采样率48000
 
     private static final int step = 64;//滑动窗口为64个采样点
+
+    //格式：双声道
+    int channelConfiguration = AudioFormat.CHANNEL_IN_STEREO;
+    //16Bit
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+
+    // 是否在录制
+    boolean isRecording = false;
+    // 每次从audiorecord输入流中获取到的buffer的大小
+    int bufferSize = 0;
 
     public void showToast(CharSequence text) {
         if(mToast != null) {
@@ -176,6 +196,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                 finalRes.append(frag);
                 idx += pkg_len;
             }
+            textResult = finalRes.toString();
 
 //            byte[] notes=new byte[list.toString().size()/8];
 //            for(int i = 0; i< list.toString().size()/8; i++){
@@ -195,15 +216,60 @@ public class Receive extends Fragment implements View.OnClickListener {
         }
     }
 
+    //开始录音
+    public void StartRecord(String name) {
+
+        //生成原始数据文件
+        File file = new File(name);
+        //如果文件已经存在，就先删除再创建
+        if (file.exists())
+            file.delete();
+        try {
+            file.createNewFile();
+        } catch (IOException e) {
+            throw new IllegalStateException("未能创建" + file.toString());
+        }
+        try {
+            //文件输出流
+            OutputStream os = new FileOutputStream(file);
+            BufferedOutputStream bos = new BufferedOutputStream(os);
+            DataOutputStream dos = new DataOutputStream(bos);
+            //获取在当前采样和信道参数下，每次读取到的数据buffer的大小
+            bufferSize = AudioRecord.getMinBufferSize(rate, channelConfiguration, audioEncoding);
+            //建立audioRecord实例
+            AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfiguration, audioEncoding, bufferSize);
+
+            //设置用来承接从audiorecord实例中获取的原始数据的数组
+            byte[] buffer = new byte[bufferSize];
+            //启动audioRecord
+            audioRecord.startRecording();
+            //设置正在录音的参数isRecording为true
+            isRecording = true;
+            //只要isRecording为true就一直从audioRecord读出数据，并写入文件输出流。
+            //当停止按钮被按下，isRecording会变为false，循环停止
+            while (isRecording) {
+                int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                for (int i = 0; i < bufferReadResult; i++) {
+                    dos.write(buffer[i]);
+                }
+            }
+            //停止audioRecord，关闭输出流
+            audioRecord.stop();
+            dos.close();
+        } catch (Throwable t) {
+            Log.e("MainActivity", "录音失败");
+        }
+    }
+
     @Override
     public void onClick(View v) {
         switch (v.getId())
         {
             case R.id.startReceive:
                 //showToast("encode");
-                start.setEnabled(false);
-                stop.setEnabled(true);
-                decodeButton.setEnabled(false);
+//                start.setEnabled(false);
+//                stop.setEnabled(true);
+                decodeButton.setEnabled(true);
                 break;
             case R.id.stopReceive:
                 //startPlayer(v);
@@ -212,7 +278,9 @@ public class Receive extends Fragment implements View.OnClickListener {
                 decodeButton.setEnabled(true);
                 break;
             case R.id.decodeButton:
-                result.setText("");
+                String name = getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav";
+                decode(name);
+                result.setText(textResult);
                 //pausePlayer(v);
                 break;
             default:
