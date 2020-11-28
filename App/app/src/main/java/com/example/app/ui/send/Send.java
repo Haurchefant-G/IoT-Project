@@ -38,6 +38,8 @@ public class Send extends Fragment {
     private static final int interval_length=4;//包间隔
     private static final int header_size = 8 + 8 + 10; //包头长度
 
+    private int[] bits; //payload 01序列
+
     public static Send newInstance() {
         return new Send();
     }
@@ -61,6 +63,16 @@ public class Send extends Fragment {
         ByteBuffer buff = charset_utf8.encode(message);
         byte[] bArr = new byte[buff.remaining()];
         buff.get(bArr);
+
+        bits = new int[8*bArr.length];
+        for(int i=0;i<bArr.length;i++) {
+            int code=(int)bArr[i];
+            for(int j=0;j<8;j++){
+                int bit=code&1;
+                bits[i*8+7-j]=bit;
+                code=code>>1;
+            }
+        }
 
         //分包
         int message_length = 8*bArr.length;
