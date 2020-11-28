@@ -14,6 +14,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.app.R;
@@ -26,9 +28,14 @@ import java.nio.charset.Charset;
 
 import static java.lang.Math.cos;
 
-public class Send extends Fragment {
+public class Send extends Fragment implements View.OnClickListener {
 
     private SendViewModel mViewModel;
+
+    private Toast mToast;
+
+    Button encode, play;
+    TextView input, result;
 
     private static final int SamplingRate = 48000;//采样率
     private static final int f0=6400;//频率0位4500Hz
@@ -38,7 +45,18 @@ public class Send extends Fragment {
     private static final int interval_length=4;//包间隔
     private static final int header_size = 8 + 8 + 10; //包头长度
 
+
     private int[] bits; //payload 01序列
+
+    public void showToast(CharSequence text) {
+        if(mToast != null) {
+            mToast.cancel();
+            mToast = null;
+        }
+        mToast = Toast.makeText(getContext(), text, Toast.LENGTH_SHORT);
+        mToast.show();
+    }
+
 
     public static Send newInstance() {
         return new Send();
@@ -55,6 +73,13 @@ public class Send extends Fragment {
         super.onActivityCreated(savedInstanceState);
         mViewModel = ViewModelProviders.of(this).get(SendViewModel.class);
         // TODO: Use the ViewModel
+        encode = getActivity().findViewById(R.id.encodeButton);
+        play = getActivity().findViewById(R.id.playButton);
+        input = getActivity().findViewById(R.id.inputText);
+        result = getActivity().findViewById(R.id.encodeText);
+        encode.setOnClickListener(this);
+        play.setOnClickListener(this);
+        input.setOnClickListener(this);
     }
 
     //编码与分包
@@ -143,8 +168,9 @@ public class Send extends Fragment {
         //调用生成声音函数
         GenerateAudio(name,encode_bits);
 
-        Toast t = Toast.makeText(this.getContext(),"Encoding finished, press PLAY to play.", Toast.LENGTH_LONG);
-        t.show();
+//        Toast t = Toast.makeText(this.getContext(),"Encoding finished, press PLAY to play.", Toast.LENGTH_LONG);
+//        t.show();
+        showToast("Encoding finished, press PLAY to play.");
     }
 
     //开始生成编码声音
@@ -283,13 +309,43 @@ public class Send extends Fragment {
             });
         }
         catch(IOException err){
-            Toast t = Toast.makeText(this.getContext(),"Error: File not exist, please encode again.", Toast.LENGTH_LONG);
-            t.show();
+//            Toast t = Toast.makeText(this.getContext(),"Error: File not exist, please encode again.", Toast.LENGTH_LONG);
+//            t.show();
+            showToast("Error: File not exist, please encode again.");
         }
         catch(IllegalStateException err){
-            Toast t = Toast.makeText(this.getContext(),"Error: File not exist, please encode again.", Toast.LENGTH_LONG);
-            t.show();
+//            Toast t = Toast.makeText(this.getContext(),"Error: File not exist, please encode again.", Toast.LENGTH_LONG);
+//            t.show();
+            showToast("Error: File not exist, please encode again.");
         }
     }
 
+    @Override
+    public void onClick(View v) {
+        switch (v.getId())
+        {
+            case R.id.encodeButton:
+                //showToast("encode");
+                String i = input.getText().toString();
+                encode(i);
+                result.setText(bits.toString());
+                play.setEnabled(true);
+                break;
+            case R.id.playButton:
+                //startPlayer(v);
+                playWav();
+                play.setEnabled(false);
+                break;
+            case R.id.inputText:
+                result.setText("");
+                //pausePlayer(v);
+                break;
+            default:
+                break;
+        }
+    }
+
+    public void onSelectWavClick(View view) {
+
+    }
 }

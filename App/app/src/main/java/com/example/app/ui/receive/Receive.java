@@ -43,13 +43,13 @@ public class Receive extends Fragment {
         receiveViewModel =
                 ViewModelProviders.of(this).get(ReceiveViewModel.class);
         View root = inflater.inflate(R.layout.receive_fragment, container, false);
-        final TextView textView = root.findViewById(R.id.text_receive);
-        receiveViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
-            @Override
-            public void onChanged(@Nullable String s) {
-                textView.setText(s);
-            }
-        });
+//        final TextView textView = root.findViewById(R.id.text_receive);
+//        receiveViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
+//            @Override
+//            public void onChanged(@Nullable String s) {
+//                textView.setText(s);
+//            }
+//        });
         return root;
     }
 
