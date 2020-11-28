@@ -189,7 +189,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                     bytes[i] = 0;
                     for (int j = 0; j < 8; j++)
                     {
-                        bytes[i] += (byte)((int)msg_recv.charAt(idx) << (7-j));
+                        bytes[i] += (byte)((int)(msg_recv.charAt(idx)-'0') << (7-j));
                         idx++;
                     }
                 }
@@ -198,17 +198,6 @@ public class Receive extends Fragment implements View.OnClickListener {
             }
             textResult = finalRes.toString();
 
-//            byte[] notes=new byte[list.toString().size()/8];
-//            for(int i = 0; i< list.toString().size()/8; i++){
-//                notes[i]=0;
-//                for(int j=0;j<8;j++){
-//                    notes[i]+=(byte)((int) list.toString().get(i*8+j))<<(7-j);
-//                }
-//            }
-//            String str=new String(notes);
-//            str="Result:"+str;
-//            Toast t = Toast.makeText(this.getContext(),"Decoding finished.", Toast.LENGTH_LONG);
-//            t.show();
         }
         catch(NullPointerException e){
             Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
