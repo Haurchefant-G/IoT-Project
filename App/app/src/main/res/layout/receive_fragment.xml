@@ -96,6 +96,17 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/receiveText" />
 
+                <Button
+                    android:id="@+id/playRecord"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="40dp"
+                    android:enabled="false"
+                    android:text="PLAY"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/decodeButton" />
+
                 <TextView
                     android:id="@+id/decodeLabel"
                     android:layout_width="wrap_content"
@@ -104,7 +115,7 @@
                     android:text="解码结果"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/decodeButton" />
+                    app:layout_constraintTop_toBottomOf="@+id/playRecord" />
 
                 <EditText
                     android:id="@+id/decodeText"

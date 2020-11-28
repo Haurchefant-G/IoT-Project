@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
+import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Looper;
@@ -19,7 +20,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProviders;
 
 import com.example.app.R;
@@ -38,7 +38,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -50,7 +49,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     private Toast mToast;
 
-    Button start, stop, decodeButton;
+    Button start, stop, decodeButton, play;
     TextView receiveText, result;
 
     String textResult = "";
@@ -102,11 +101,13 @@ public class Receive extends Fragment implements View.OnClickListener {
         start = getActivity().findViewById(R.id.startReceive);
         stop = getActivity().findViewById(R.id.stopReceive);
         decodeButton = getActivity().findViewById(R.id.decodeButton);
+        play = getActivity().findViewById(R.id.playRecord);
         receiveText = getActivity().findViewById(R.id.receiveText);
         result = getActivity().findViewById(R.id.decodeText);
         start.setOnClickListener(this);
         stop.setOnClickListener(this);
         decodeButton.setOnClickListener(this);
+        play.setOnClickListener(this);
     }
 
     public void decode(String fileName)
@@ -277,6 +278,7 @@ public class Receive extends Fragment implements View.OnClickListener {
         stop.setEnabled(true);
         start.setEnabled(false);
         decodeButton.setEnabled(false);
+        play.setEnabled(false);
         // toast提示开始相应录制
         showToast("开始录制，采样频率为" + rate + "Hz");
         Thread thread = new Thread(new Runnable() {
@@ -310,6 +312,7 @@ public class Receive extends Fragment implements View.OnClickListener {
         stop.setEnabled(false);
         start.setEnabled(true);
         decodeButton.setEnabled(true);
+        play.setEnabled(true);
     }
 
     private void copyWaveFile(String inFileName, String outFileName)
@@ -350,6 +353,31 @@ public class Receive extends Fragment implements View.OnClickListener {
         }
     }
 
+    private void playWav(){
+        //设置保存数据的文件名
+        String name = getContext().getExternalFilesDir("")+"/"+"receive.wav";
+        //调用生成声音函数
+        MediaPlayer mMediaPlayer=new MediaPlayer();
+        try{
+            mMediaPlayer.setDataSource(name) ;
+            mMediaPlayer.prepareAsync();
+
+            mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    // 装载完毕回调
+                    mp.start();
+                }
+            });
+        }
+        catch(IOException err){
+            showToast("Error: File not exist, please encode again.");
+        }
+        catch(IllegalStateException err){
+            showToast("Error: File not exist, please encode again.");
+        }
+    }
 
     private void WriteWaveFileHeader(FileOutputStream out, long totalAudioLen,
                                      long totalDataLen, long longSampleRate, int channels, long byteRate)
@@ -418,6 +446,9 @@ public class Receive extends Fragment implements View.OnClickListener {
                 showToast("decode完成");
                 result.setText(textResult);
                 //pausePlayer(v);
+                break;
+            case R.id.playRecord:
+                playWav();
                 break;
             default:
                 break;
