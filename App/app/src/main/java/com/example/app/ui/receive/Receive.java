@@ -136,7 +136,7 @@ public class Receive extends Fragment {
                 idx += 10;
 
                 byte[] bytes = new byte[pkg_len / 8];
-                for (int i = idx; i < idx + pkg_len; i++)
+                for (int i = idx; i < idx + pkg_len; i+=8)
                 {
                     bytes[i] = 0;
                     for (int j = 0; j < 8; j++)
