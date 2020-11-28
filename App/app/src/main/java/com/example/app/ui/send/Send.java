@@ -69,7 +69,7 @@ public class Send extends Fragment {
             package_num++;
         }
 
-        int array_size = package_num * (header_size + interval_length) + 8 * bArr.length;
+        int array_size = package_num * (header_size + interval_length) + message_length;
         int[] encode_bits = new int[array_size];
         int cur = 0;
 
