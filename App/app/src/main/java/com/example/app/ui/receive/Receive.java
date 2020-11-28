@@ -460,7 +460,9 @@ public class Receive extends Fragment implements View.OnClickListener {
                     @Override
                     public void run() {
                         decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        Looper.prepare();
                         showToast("decode完成");
+                        Looper.loop();
                         result.setText(textResult);
                         start.setEnabled(true);
                         play.setEnabled(true);
