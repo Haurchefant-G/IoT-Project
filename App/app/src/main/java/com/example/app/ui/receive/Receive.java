@@ -7,7 +7,9 @@ import android.media.AudioRecord;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -70,6 +72,19 @@ public class Receive extends Fragment implements View.OnClickListener {
     boolean isRecording = false;
     // 每次从audiorecord输入流中获取到的buffer的大小
     int bufferSize = 0;
+
+    Handler handle = new Handler() {
+
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            start.setEnabled(true);
+            play.setEnabled(true);
+            decodeButton.setEnabled(true);
+            result.setText(textResult);
+        }
+
+    };
 
     public void showToast(CharSequence text) {
         if(mToast != null) {
@@ -135,7 +150,7 @@ public class Receive extends Fragment implements View.OnClickListener {
             }
             //寻找起始点
             int start_length=0;
-            double base=5.0;
+            double base = 2.0;
 
             double max0 = 0.0, max1 = 0.0; //辅助设置阈值
             for(int i=0;i<fftResult.length;i++){
@@ -219,8 +234,11 @@ public class Receive extends Fragment implements View.OnClickListener {
 
         }
         catch(NullPointerException e){
-            Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
-            t.show();
+            //Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
+            //t.show();
+            Looper.prepare();
+            showToast("Error: Cannot get the path.");
+            Looper.loop();
         }
     }
 
@@ -460,13 +478,11 @@ public class Receive extends Fragment implements View.OnClickListener {
                     @Override
                     public void run() {
                         decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        Message msg = new Message();
+                        handle.sendMessage(msg);
                         Looper.prepare();
                         showToast("decode完成");
                         Looper.loop();
-                        result.setText(textResult);
-                        start.setEnabled(true);
-                        play.setEnabled(true);
-                        decodeButton.setEnabled(true);
                     }
                 });
                 thread.start();
