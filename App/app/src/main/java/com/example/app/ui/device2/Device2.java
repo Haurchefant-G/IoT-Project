@@ -1,4 +1,4 @@
-package com.example.app.ui.home;
+package com.example.app.ui.device2;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -14,17 +14,17 @@ import androidx.lifecycle.ViewModelProviders;
 
 import com.example.app.R;
 
-public class HomeFragment extends Fragment {
+public class Device2 extends Fragment {
 
-    private HomeViewModel homeViewModel;
+    private Device2ViewModel device2ViewModel;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-        homeViewModel =
-                ViewModelProviders.of(this).get(HomeViewModel.class);
-        View root = inflater.inflate(R.layout.fragment_home, container, false);
-        final TextView textView = root.findViewById(R.id.text_home);
-        homeViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
+        device2ViewModel =
+                ViewModelProviders.of(this).get(Device2ViewModel.class);
+        View root = inflater.inflate(R.layout.device2_fragment, container, false);
+        final TextView textView = root.findViewById(R.id.text_device2);
+        device2ViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
             @Override
             public void onChanged(@Nullable String s) {
                 textView.setText(s);

@@ -3,29 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mobile_navigation"
-    app:startDestination="@+id/navigation_home">
-
-    <fragment
-        android:id="@+id/navigation_home"
-        android:name="com.example.app.ui.home.HomeFragment"
-        android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
-
-    <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.app.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
-
-    <fragment
-        android:id="@+id/navigation_notifications"
-        android:name="com.example.app.ui.notifications.NotificationsFragment"
-        android:label="@string/title_notifications"
-        tools:layout="@layout/fragment_notifications" />
+    app:startDestination="@+id/navigation_send">
 
     <fragment
         android:id="@+id/navigation_send"
         android:name="com.example.app.ui.send.Send"
         android:label="@string/title_send"
         tools:layout="@layout/send_fragment" />
+
+    <fragment
+        android:id="@+id/navigation_receive"
+        android:name="com.example.app.ui.receive.Receive"
+        android:label="@string/title_receive"
+        tools:layout="@layout/receive_fragment" />
+
+    <fragment
+        android:id="@+id/navigation_device1"
+        android:name="com.example.app.ui.device1.Device1"
+        android:label="@string/title_device1"
+        tools:layout="@layout/device1_fragment" />
+
+    <fragment
+        android:id="@+id/navigation_device2"
+        android:name="com.example.app.ui.device2.Device2"
+        android:label="@string/title_device2"
+        tools:layout="@layout/device2_fragment" />
 </navigation>

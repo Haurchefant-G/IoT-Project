@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">App</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_device2">Device2</string>
+    <string name="title_receive">Receive</string>
+    <string name="title_device1">Device1</string>
     <string name="title_send">Send</string>
 </resources>
