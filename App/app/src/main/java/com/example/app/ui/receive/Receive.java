@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.csvreader.CsvWriter;
 import com.example.app.R;
 import com.example.app.Utils.WaveFileReader;
 
@@ -40,6 +41,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -64,6 +66,8 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     private static final int step = 64;//滑动窗口为64个采样点
     private static final int stepT = 32;//测试滑动窗口为32个采样点
+
+    private final String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"res.csv";
 
     //格式：双声道
     int channelConfiguration = AudioFormat.CHANNEL_IN_STEREO;
@@ -247,6 +251,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     //测试用函数
     public void decode2(String fileName)
     {
+        CsvWriter csvWriter = new CsvWriter(CSV_FILE_PATH,',', Charset.forName("GBK"));
         StringBuilder finalRes = new StringBuilder("");
         try {
             //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
@@ -356,20 +361,25 @@ public class Receive extends Fragment implements View.OnClickListener {
                 idx += pkg_len;
                 String frag = new String(bytes);
                 finalRes.append(frag);
-
+                String[] s_array = new String[pkg_len + 1];
+                s_array[0] = String.valueOf(pkg_len);
+                for (int i = 1; i <= pkg_len; i++)
+                    s_array[i] = String.valueOf(frag.charAt(i - 1));
+                csvWriter.writeRecord(s_array);
                 //TODO 测试用
                 break;
             }
             textResult = finalRes.toString();
 
         }
-        catch(NullPointerException e){
+        catch(NullPointerException | IOException e){
             //Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
             //t.show();
             Looper.prepare();
             showToast("Error: Cannot get the path.");
             Looper.loop();
         }
+        csvWriter.close();
     }
 
     //开始录音
