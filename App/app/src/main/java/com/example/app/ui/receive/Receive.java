@@ -67,7 +67,6 @@ public class Receive extends Fragment implements View.OnClickListener {
     private static final int step = 64;//滑动窗口为64个采样点
     private static final int stepT = 32;//测试滑动窗口为32个采样点
 
-    private final String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"res.csv";
 
     //格式：双声道
     int channelConfiguration = AudioFormat.CHANNEL_IN_STEREO;
@@ -251,6 +250,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     //测试用函数
     public void decode2(String fileName)
     {
+        String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"res.csv";
         CsvWriter csvWriter = new CsvWriter(CSV_FILE_PATH,',', Charset.forName("GBK"));
         StringBuilder finalRes = new StringBuilder("");
         try {
@@ -276,8 +276,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                 fftResult[i][0] = max(max(result[index_0 - 1].abs(), result[index_0].abs()), result[index_0 + 1].abs());
                 fftResult[i][1] = max(max(result[index_1 - 1].abs(), result[index_1].abs()), result[index_1 + 1].abs());
             }
-            //寻找起始点
-            int start_length=0;
+
 
             double max0 = 0.0, max1 = 0.0; //辅助设置阈值
             double base0 = 0.0, base1 = 0.0;
@@ -295,82 +294,84 @@ public class Receive extends Fragment implements View.OnClickListener {
             if (base0 < base1) base1 = base0;
             else base0 = base1;
 
-            for(int i=0;i<fftResult.length;i++){
-                if(fftResult[i][0]<base0 && fftResult[i][1]<base1){
-                    start_length++;
-                }
-                else{
-                    break;
-                }
-            }
+            //寻找起始点
+            int start_length=0;
 
-            //从起始点开始解码音频文件
-            int blocklength = 1200 / stepT;
-            StringBuilder list = new StringBuilder("");
-            for(int i=start_length;i<fftResult.length;i+=blocklength){
-                int zeros=0;
-                int time0=0;
-                int time1=0;
-                for(int j=i;j<i+blocklength;j++) {
+            while (start_length < fftResult.length) {
+                int startIndex = start_length;
+                for (int i = startIndex; i < fftResult.length; i++) {
                     if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
-                        zeros+=1;
-                    }
-                    else {
-                        if (fftResult[j][0]>base0 && fftResult[j][0]>fftResult[j][1]){
-                            time0++;
-                        }
-                        else if(fftResult[j][1]>base1 && fftResult[j][0]<fftResult[j][1]){
-                            time1++;
-                        }
+                        start_length++;
+                    } else {
+                        break;
                     }
                 }
-                if(zeros>blocklength/3){
-                    break;
+
+                //从起始点开始解码音频文件
+                int blocklength = 1200 / stepT;
+                StringBuilder list = new StringBuilder("");
+                for (int i = start_length; i < fftResult.length; i += blocklength) {
+                    int zeros = 0;
+                    int time0 = 0;
+                    int time1 = 0;
+                    for (int j = i; j < i + blocklength; j++) {
+                        if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
+                            zeros += 1;
+                        } else {
+                            if (fftResult[j][0] > base0 && fftResult[j][0] > fftResult[j][1]) {
+                                time0++;
+                            } else if (fftResult[j][1] > base1 && fftResult[j][0] < fftResult[j][1]) {
+                                time1++;
+                            }
+                        }
+                    }
+                    if (zeros > blocklength / 3) {
+                        start_length = i;
+                        break;
+                    }
+                    if (time0 > time1) {
+                        list.append("0");
+                    } else {
+                        list.append("1");
+                    }
                 }
-                if(time0>time1){
-                    list.append("0");
+
+
+                int idx = 0;
+                String msg_recv = list.toString();
+
+                Log.i("Info", "" + msg_recv);
+
+                int listSize = msg_recv.length();
+                String preamble = "01010101010101010101";
+                int seq_num = 0;
+                while (idx < listSize) {
+                    idx = msg_recv.indexOf(preamble, idx);
+                    if (idx == -1)
+                        break;
+                    idx += preamble.length();
+                    //TODO: 检查大小端问题
+                    seq_num++;
+
+                    String s_pkg_len = msg_recv.substring(idx, idx + 8);
+                    int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
+                    idx += 8;
+
+                    String bytes = msg_recv.substring(idx, idx + pkg_len);
+                    idx += pkg_len;
+                    String frag = new String(bytes);
+                    finalRes.append(frag);
+                    String[] s_array = new String[pkg_len + 1];
+                    s_array[0] = String.valueOf(pkg_len - 1);
+                    for (int i = 1; i <= pkg_len; i++)
+                        s_array[i] = String.valueOf(frag.charAt(i - 1));
+                    csvWriter.writeRecord(s_array);
+
+                    //TODO 测试用
+                    //break;
                 }
-                else{
-                    list.append("1");
-                }
+                //textResult = finalRes.toString();
             }
-
-
-            int idx = 0;
-            String msg_recv = list.toString();
-
-            Log.i("Info", ""+msg_recv);
-
-            int listSize = msg_recv.length();
-            String preamble = "01010101010101010101";
-            int seq_num = 0;
-            while(idx < listSize)
-            {
-                idx = msg_recv.indexOf(preamble, idx);
-                if (idx == -1)
-                    break;
-                idx += preamble.length();
-                //TODO: 检查大小端问题
-                seq_num++;
-
-                String s_pkg_len = msg_recv.substring(idx, idx + 8);
-                int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
-                idx += 8;
-
-                String bytes = msg_recv.substring(idx, idx+pkg_len);
-                idx += pkg_len;
-                String frag = new String(bytes);
-                finalRes.append(frag);
-                String[] s_array = new String[pkg_len + 1];
-                s_array[0] = String.valueOf(pkg_len);
-                for (int i = 1; i <= pkg_len; i++)
-                    s_array[i] = String.valueOf(frag.charAt(i - 1));
-                csvWriter.writeRecord(s_array);
-                //TODO 测试用
-                break;
-            }
-            textResult = finalRes.toString();
-
         }
         catch(NullPointerException | IOException e){
             //Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
