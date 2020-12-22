@@ -44,6 +44,7 @@ import java.util.Calendar;
 import java.util.Date;
 
 import static org.apache.commons.math3.util.FastMath.max;
+import static org.apache.commons.math3.util.FastMath.min;
 
 public class Receive extends Fragment implements View.OnClickListener {
 
@@ -62,6 +63,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     private static final int rate = 48000;//采样率48000
 
     private static final int step = 64;//滑动窗口为64个采样点
+    private static final int stepT = 32;//测试滑动窗口为32个采样点
 
     //格式：双声道
     int channelConfiguration = AudioFormat.CHANNEL_IN_STEREO;
@@ -229,6 +231,134 @@ public class Receive extends Fragment implements View.OnClickListener {
                 }
                 String frag = new String(bytes);
                 finalRes.append(frag);
+            }
+            textResult = finalRes.toString();
+
+        }
+        catch(NullPointerException e){
+            //Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);
+            //t.show();
+            Looper.prepare();
+            showToast("Error: Cannot get the path.");
+            Looper.loop();
+        }
+    }
+
+    //测试用函数
+    public void decode2(String fileName)
+    {
+        StringBuilder finalRes = new StringBuilder("");
+        try {
+            //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+            WaveFileReader reader = new WaveFileReader(fileName);
+            int[] data = reader.getData()[0];
+            //傅里叶变换找到两个频率的强度
+            int index_0 = (int)((double)4000 / rate * length);
+            int index_1 = (int)((double)6000 / rate * length);
+
+            // todo
+            int result_length = (data.length - length) / stepT + 1;
+            //int result_length = (data.length / 8 - length) / stepT + 1;
+
+            double [][]fftResult = new double[result_length][2];
+            for(int i = 0; i < result_length; i++){
+                double[] inputData = new double[length];
+                for (int j = 0; j < length; j++){
+                    inputData[j] = (double)data[stepT * i + j] / 32767;
+                }
+                FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+                Complex[] result = fft.transform(inputData, TransformType.FORWARD);
+                fftResult[i][0] = max(max(result[index_0 - 1].abs(), result[index_0].abs()), result[index_0 + 1].abs());
+                fftResult[i][1] = max(max(result[index_1 - 1].abs(), result[index_1].abs()), result[index_1 + 1].abs());
+            }
+            //寻找起始点
+            int start_length=0;
+
+            double max0 = 0.0, max1 = 0.0; //辅助设置阈值
+            double base0 = 0.0, base1 = 0.0;
+            for(int i=0;i<fftResult.length;i++){
+                if (max0 < fftResult[i][0]) {
+                    max0 = fftResult[i][0];
+                }
+                if (max1 < fftResult[i][1]) {
+                    max1 = fftResult[i][1];
+                }
+            }
+            base0 = max0 * 0.5;
+            base1 = max1 * 0.5;
+
+            if (base0 < base1) base1 = base0;
+            else base0 = base1;
+
+            for(int i=0;i<fftResult.length;i++){
+                if(fftResult[i][0]<base0 && fftResult[i][1]<base1){
+                    start_length++;
+                }
+                else{
+                    break;
+                }
+            }
+
+            //从起始点开始解码音频文件
+            int blocklength = 1200 / stepT;
+            StringBuilder list = new StringBuilder("");
+            for(int i=start_length;i<fftResult.length;i+=blocklength){
+                int zeros=0;
+                int time0=0;
+                int time1=0;
+                for(int j=i;j<i+blocklength;j++) {
+                    if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
+                        zeros+=1;
+                    }
+                    else {
+                        if (fftResult[j][0]>base0 && fftResult[j][0]>fftResult[j][1]){
+                            time0++;
+                        }
+                        else if(fftResult[j][1]>base1 && fftResult[j][0]<fftResult[j][1]){
+                            time1++;
+                        }
+                    }
+                }
+                if(zeros>blocklength/3){
+                    break;
+                }
+                if(time0>time1){
+                    list.append("0");
+                }
+                else{
+                    list.append("1");
+                }
+            }
+
+
+            int idx = 0;
+            String msg_recv = list.toString();
+
+            Log.i("Info", ""+msg_recv);
+
+            int listSize = msg_recv.length();
+            String preamble = "01010101010101010101";
+            int seq_num = 0;
+            while(idx < listSize)
+            {
+                idx = msg_recv.indexOf(preamble, idx);
+                if (idx == -1)
+                    break;
+                idx += preamble.length();
+                //TODO: 检查大小端问题
+                seq_num++;
+
+                String s_pkg_len = msg_recv.substring(idx, idx + 8);
+                int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
+                idx += 8;
+
+                String bytes = msg_recv.substring(idx, idx+pkg_len);
+                idx += pkg_len;
+                String frag = new String(bytes);
+                finalRes.append(frag);
+
+                //TODO 测试用
+                break;
             }
             textResult = finalRes.toString();
 
@@ -477,7 +607,9 @@ public class Receive extends Fragment implements View.OnClickListener {
                 Thread thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        //TODO 切换
+                        //decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
                         Looper.prepare();
