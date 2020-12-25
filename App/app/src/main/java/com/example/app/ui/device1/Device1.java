@@ -3,17 +3,24 @@ package com.example.app.ui.device1;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.media.ToneGenerator;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,12 +32,21 @@ import androidx.lifecycle.ViewModelProviders;
 import com.example.app.R;
 import com.example.app.ui.send.SendViewModel;
 
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+
+import biz.source_code.dsp.transform.Dft;
+
+import static org.apache.commons.math3.util.FastMath.max;
 
 public class Device1 extends Fragment implements View.OnClickListener {
 
@@ -47,10 +63,17 @@ public class Device1 extends Fragment implements View.OnClickListener {
     Button startserver, startcalc;
 
 
-
     public static ServerSocket serverSocket = null;
     private String IP = "";
     String buffer = "";
+
+    private static final int rate = 48000;//采样率48000'
+    int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    int bufferSize = 0;
+    long t1 = 0;
+    long t2 = 0;
+
 
     public Handler mHandler = new Handler() {
         @Override
@@ -59,11 +82,16 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 readytext.setText("已连接，可开始测距");
                 startserver.setEnabled(false);
                 startcalc.setEnabled(true);
+                startRecord();
             } else if (msg.what ==0x12) {
+                // t2接收到
                 Bundle bundle = msg.getData();
-                // mTextView.append("client"+bundle.getString("msg")+"\n");
-                System.currentTimeMillis();
-                resulttext.setText(bundle.getString("msg"));
+                t2 = Long.parseLong(bundle.getString("msg"));
+                t2text.setText(String.valueOf(t2));
+                if (t1 != 0)
+                {
+                    resulttext.setText(String.valueOf(calcDistance()));
+                }
 
                 readytext.setText("未开启server");
                 serverSocket = null;
@@ -74,6 +102,14 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 serverSocket = null;
                 startserver.setEnabled(true);
                 startcalc.setEnabled(false);
+            } else if (msg.what == 0x14) {
+                // ta1 ta3记录成功
+                t1 = ta3 - ta1;
+                t1text.setText(String.valueOf(t2));
+                if (t2 != 0)
+                {
+                    resulttext.setText(String.valueOf(calcDistance()));
+                }
             }
         };
     };
@@ -119,6 +155,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
         }
     }
 
+
     private String getlocalip(){
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_WIFI_STATE)!=
                         PackageManager.PERMISSION_GRANTED
@@ -137,11 +174,80 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 +(ipAddress>>16 & 0xff)+"."+(ipAddress>>24 & 0xff));
     }
 
+    void startRecord() {
+        new Thread() {
+            public void run() {
+                bufferSize = AudioRecord.getMinBufferSize(rate, channelConfiguration, audioEncoding);
+                AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfiguration, audioEncoding, bufferSize);
+                byte[] buffer = new byte[bufferSize];
+                double[] buffer_d = new double[bufferSize];
+                audioRecord.startRecording();
+                // 开始进行第一次声音接收
+                int beepnum = 0;
+                while (beepnum < 2)
+                {
+                    int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                    for (int i = 0; i < bufferReadResult && i < bufferSize; i++)
+                        buffer_d[i] = (double)buffer[i] / 32768.0;
+                    int index = (int)((double)425 / rate * bufferReadResult);
+                    double fftResult;
+                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
+                    int mean = 0;
+                    for (int i = 0; i < result.length; i++)
+                    {
+                        mean += result[i].abs();
+                    }
+                    mean /= result.length;
+                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
+                    if (fftResult > 2 * mean)
+                    {
+                        Log.i("startcalc", "Target Sound Detected");
+                        if (beepnum == 0)
+                        {
+                            ta1 = System.currentTimeMillis();
+                        } else if (beepnum == 1) {
+                            ta3 = System.currentTimeMillis();
+                            if (ta3 - ta1 > 501)
+                                ++beepnum;
+                        }
+                    }
+                    Message msg = new Message();
+                    msg.what = 0x14;
+                    mHandler.sendMessage(msg);
+                }
+            }
+        }.start();
+    }
+
+    class beepPlayThread extends Thread{
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            toneGen1.startTone(ToneGenerator.TONE_CDMA_DIAL_TONE_LITE,500);
+        }
+    }
+
+    int calcDistance()
+    {
+        int distance = (int) (340.0 * (t1 - t2) / 1000 / 2 + daa + dbb);
+        return distance;
+    }
+
     @Override
     public void onClick(View v) {
         switch (v.getId())
         {
             case R.id.startserver:
+                t1 = 0;
+                t2 = 0;
+                ta1 = 0;
+                ta3 = 0;
                 readytext.setText("等待连接");
                 new Thread() {
                     public void run() {
@@ -179,6 +285,9 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 break;
 
             case R.id.startcalc:
+                daa = Integer.parseInt(daatext.getText().toString());
+                dbb = Integer.parseInt(dbbtext.getText().toString());
+                new beepPlayThread().start();
                 break;
 
 

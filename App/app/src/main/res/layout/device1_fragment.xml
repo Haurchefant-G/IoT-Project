@@ -87,7 +87,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="daa (cm)" />
+                        android:text="daa (mm)" />
 
                     <Space
                         android:layout_width="20dp"
@@ -117,7 +117,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="dbb (cm)" />
+                        android:text="dbb (mm)" />
 
                     <Space
                         android:layout_width="20dp"
@@ -159,7 +159,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="t_A3 - t_A1" />
+                        android:text="t_A3 - t_A1(ms)" />
 
                     <Space
                         android:layout_width="20dp"
@@ -190,7 +190,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="t_B3 - t_B1" />
+                        android:text="t_B3 - t_B1(ms)" />
 
                     <Space
                         android:layout_width="20dp"
@@ -223,7 +223,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="测距结果" />
+                        android:text="测距结果(mm)" />
 
                     <Space
                         android:layout_width="20dp"
