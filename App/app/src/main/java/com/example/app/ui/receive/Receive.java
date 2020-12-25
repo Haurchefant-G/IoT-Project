@@ -45,6 +45,13 @@ import java.nio.charset.Charset;
 import java.util.Calendar;
 import java.util.Date;
 
+import biz.source_code.dsp.filter.FilterCharacteristicsType;
+import biz.source_code.dsp.filter.FilterPassType;
+import biz.source_code.dsp.filter.IirFilter;
+import biz.source_code.dsp.filter.IirFilterCoefficients;
+import biz.source_code.dsp.filter.IirFilterDesignExstrom;
+import biz.source_code.dsp.filter.IirFilterDesignFisher;
+
 import static org.apache.commons.math3.util.FastMath.max;
 import static org.apache.commons.math3.util.FastMath.min;
 
@@ -256,20 +263,37 @@ public class Receive extends Fragment implements View.OnClickListener {
         try {
             //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
             WaveFileReader reader = new WaveFileReader(fileName);
-            int[] data = reader.getData()[0];
+            int[] dataR = reader.getData()[0];
+            double[] data = new double[dataR.length];
             //傅里叶变换找到两个频率的强度
             int index_0 = (int)((double)4000 / rate * length);
             int index_1 = (int)((double)6000 / rate * length);
 
             // todo
-            int result_length = (data.length - length) / stepT + 1;
+            int result_length = (dataR.length - length) / step + 1;
             //int result_length = (data.length / 8 - length) / stepT + 1;
+
+//            IirFilterCoefficients iirFilterCoefficients1;
+//            iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+//                    3700.0 / 48000, 6300.0 / 48000);
+//            IirFilter filter1 = new IirFilter(iirFilterCoefficients1);
+//
+////            IirFilterCoefficients iirFilterCoefficients2;
+////            iirFilterCoefficients2 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+////                    5700.0 / 48000, 6300.0 / 48000);
+////            IirFilter filter2 = new IirFilter(iirFilterCoefficients2);
+//
+            for (int i = 0; i<dataR.length; i++) {
+                //data[i] = max(filter1.step(dataR[i]), filter2.step(dataR[i]));
+                //data[i] = filter1.step(dataR[i]);
+                data[i] = dataR[i];
+            }
 
             double [][]fftResult = new double[result_length][2];
             for(int i = 0; i < result_length; i++){
                 double[] inputData = new double[length];
                 for (int j = 0; j < length; j++){
-                    inputData[j] = (double)data[stepT * i + j] / 32767;
+                    inputData[j] = (double)data[step * i + j] / 32767;
                 }
                 FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
                 Complex[] result = fft.transform(inputData, TransformType.FORWARD);
@@ -291,11 +315,15 @@ public class Receive extends Fragment implements View.OnClickListener {
             base0 = max0 * 0.5;
             base1 = max1 * 0.5;
 
-            if (base0 < base1) base1 = base0;
-            else base0 = base1;
+            Log.i("Info", "base0: " + base0 + ", " + "base1: " + base1);
+
+//            if (base0 < base1) base1 = base0;
+//            else base0 = base1;
 
             //寻找起始点
             int start_length=0;
+
+            StringBuilder list = new StringBuilder("");
 
             while (start_length < fftResult.length) {
                 int startIndex = start_length;
@@ -308,19 +336,20 @@ public class Receive extends Fragment implements View.OnClickListener {
                 }
 
                 //从起始点开始解码音频文件
-                int blocklength = 1200 / stepT;
-                StringBuilder list = new StringBuilder("");
+                int blocklength = 1200 / step;
+
                 for (int i = start_length; i < fftResult.length; i += blocklength) {
                     int zeros = 0;
                     int time0 = 0;
                     int time1 = 0;
                     for (int j = i; j < i + blocklength; j++) {
+                        if (j >= fftResult.length) break;
                         if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
                             zeros += 1;
                         } else {
-                            if (fftResult[j][0] > base0 && fftResult[j][0] > fftResult[j][1]) {
+                            if (fftResult[j][0] > base0) { // && fftResult[j][0] > fftResult[j][1]
                                 time0++;
-                            } else if (fftResult[j][1] > base1 && fftResult[j][0] < fftResult[j][1]) {
+                            } else if (fftResult[j][1] > base1) { // && fftResult[j][0] < fftResult[j][1]
                                 time1++;
                             }
                         }
@@ -335,43 +364,50 @@ public class Receive extends Fragment implements View.OnClickListener {
                         list.append("1");
                     }
                 }
-
-
-                int idx = 0;
-                String msg_recv = list.toString();
-
-                Log.i("Info", "" + msg_recv);
-
-                int listSize = msg_recv.length();
-                String preamble = "01010101010101010101";
-                int seq_num = 0;
-                while (idx < listSize) {
-                    idx = msg_recv.indexOf(preamble, idx);
-                    if (idx == -1)
-                        break;
-                    idx += preamble.length();
-                    //TODO: 检查大小端问题
-                    seq_num++;
-
-                    String s_pkg_len = msg_recv.substring(idx, idx + 8);
-                    int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
-                    idx += 8;
-
-                    String bytes = msg_recv.substring(idx, idx + pkg_len);
-                    idx += pkg_len;
-                    String frag = new String(bytes);
-                    finalRes.append(frag);
-                    String[] s_array = new String[pkg_len + 1];
-                    s_array[0] = String.valueOf(pkg_len - 1);
-                    for (int i = 1; i <= pkg_len; i++)
-                        s_array[i] = String.valueOf(frag.charAt(i - 1));
-                    csvWriter.writeRecord(s_array);
-
-                    //TODO 测试用
-                    //break;
-                }
-                //textResult = finalRes.toString();
             }
+
+            int idx = 0;
+            String msg_recv = list.toString();
+
+            //Log.i("Info", "" + msg_recv);
+            Log.i("Info", "01s length: " + msg_recv.length());
+
+            int listSize = msg_recv.length();
+            String preamble = "01010101010101010101";
+            int seq_num = 0;
+            while (idx < listSize) {
+                idx = msg_recv.indexOf(preamble, idx);
+
+                if (idx == -1)
+                    break;
+                seq_num++;
+
+                Log.i("Info", "package " + seq_num + " start at: " + idx);
+
+                idx += preamble.length();
+                //TODO: 检查大小端问题
+
+                String s_pkg_len = msg_recv.substring(idx, idx + 8);
+                int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
+                Log.i("Info", "package payload length: " + (pkg_len - 1));
+
+                idx += 8;
+
+                String bytes = msg_recv.substring(idx, idx + pkg_len);
+                idx += pkg_len;
+                String frag = new String(bytes);
+                finalRes.append(frag);
+                String[] s_array = new String[pkg_len + 1];
+                s_array[0] = String.valueOf(pkg_len - 1);
+                for (int i = 1; i <= pkg_len; i++)
+                    s_array[i] = String.valueOf(frag.charAt(i - 1));
+                csvWriter.writeRecord(s_array);
+
+                //TODO 测试用
+                //break;
+            }
+            //textResult = finalRes.toString();
+
         }
         catch(NullPointerException | IOException e){
             //Toast t = Toast.makeText(this.getContext(),"Error: Cannot get the path.", Toast.LENGTH_LONG);

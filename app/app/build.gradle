@@ -37,6 +37,7 @@ dependencies {
     implementation files('libs/commons-math3-3.6.1-tools.jar')
     implementation files('libs/commons-math3-3.6.1.jar')
     implementation files('libs/javacsv.jar')
+    implementation files('libs\\dsp-collection.jar')
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
