@@ -71,6 +71,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
     int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
     int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
     int bufferSize = 0;
+    private static final int blockSize = 256;
     long t1 = 0;
     long t2 = 0;
 
@@ -179,15 +180,15 @@ public class Device1 extends Fragment implements View.OnClickListener {
             public void run() {
                 bufferSize = AudioRecord.getMinBufferSize(rate, channelConfiguration, audioEncoding);
                 AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfiguration, audioEncoding, bufferSize);
-                byte[] buffer = new byte[bufferSize];
-                double[] buffer_d = new double[bufferSize];
+                byte[] buffer = new byte[blockSize];
+                double[] buffer_d = new double[blockSize];
                 audioRecord.startRecording();
                 // 开始进行第一次声音接收
                 int beepnum = 0;
                 while (beepnum < 2)
                 {
-                    int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
-                    for (int i = 0; i < bufferReadResult && i < bufferSize; i++)
+                    int bufferReadResult = audioRecord.read(buffer, 0, blockSize);
+                    for (int i = 0; i < bufferReadResult && i < blockSize; i++)
                         buffer_d[i] = (double)buffer[i] / 32768.0;
                     int index = (int)((double)425 / rate * bufferReadResult);
                     double fftResult;
@@ -202,6 +203,8 @@ public class Device1 extends Fragment implements View.OnClickListener {
                     fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
                     if (fftResult > 2 * mean)
                     {
+                        Log.i("startcalc", "fftRes:" + fftResult);
+                        Log.i("startcalc", "mean:" + mean);
                         Log.i("startcalc", "Target Sound Detected");
                         if (beepnum == 0)
                         {
