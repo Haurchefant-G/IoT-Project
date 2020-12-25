@@ -190,7 +190,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
                     int bufferReadResult = audioRecord.read(buffer, 0, blockSize);
                     for (int i = 0; i < bufferReadResult && i < blockSize; i++)
                         buffer_d[i] = (double)buffer[i] / 32768.0;
-                    int index = (int)((double)425 / rate * bufferReadResult);
+                    int index = (int)((double)425 / rate * blockSize);
                     double fftResult;
                     FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
                     Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
