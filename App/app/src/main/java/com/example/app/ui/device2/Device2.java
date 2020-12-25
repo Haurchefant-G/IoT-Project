@@ -3,6 +3,7 @@ package com.example.app.ui.device2;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.media.ToneGenerator;
 import android.os.Bundle;
@@ -57,6 +58,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
     int bufferSize = 0;
     private static final int blockSize = 256;
     long tb1, tb3;
+    int freqOfTone = 4000;
 
     public Handler mHandler = new Handler() {
         @Override
@@ -168,7 +170,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
                     int bufferReadResult = audioRecord.read(buffer, 0, blockSize);
                     for (int i = 0; i < bufferReadResult && i < blockSize; i++)
                         buffer_d[i] = (double)buffer[i] / 32768.0;
-                    int index = (int)((double)425 / rate * blockSize);
+                    int index = (int)((double)freqOfTone / rate * blockSize);
                     double fftResult;
                     FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
                     Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
@@ -210,12 +212,36 @@ public class Device2 extends Fragment implements View.OnClickListener {
         @Override
         public void run() {
             try {
-                Thread.sleep(600);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_SYSTEM, ToneGenerator.MAX_VOLUME);
-            toneGen1.startTone(ToneGenerator.TONE_CDMA_DIAL_TONE_LITE,500);
+            int duration = 1; // seconds
+            int sampleRate = 48000;
+            int numSamples = duration * sampleRate;
+            double sample[] = new double[numSamples];
+            byte generatedSnd[] = new byte[2 * numSamples];
+            for (int i = 0; i < numSamples; ++i) {
+                sample[i] = Math.sin(2 * Math.PI * i / (sampleRate/(double)freqOfTone));
+            }
+
+            // convert to 16 bit pcm sound array
+            // assumes the sample buffer is normalised.
+            int idx = 0;
+            for (final double dVal : sample) {
+                // scale to maximum amplitude
+                final short val = (short) ((dVal * 32767));
+                // in 16 bit wav PCM, first byte is the low order byte
+                generatedSnd[idx++] = (byte) (val & 0x00ff);
+                generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+
+            }
+            final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    sampleRate, AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, generatedSnd.length,
+                    AudioTrack.MODE_STATIC);
+            audioTrack.write(generatedSnd, 0, generatedSnd.length);
+            audioTrack.play();
         }
     }
 
