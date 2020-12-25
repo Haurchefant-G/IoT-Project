@@ -67,6 +67,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
                 connected = true;
                 connectbutton.setEnabled(false);
                 socketstatus.setText("已连接，等待接收声音信号");
+                startRecord();
             } else if (msg.what == 0x12) {
                 connected = false;
                 connectbutton.setEnabled(true);
@@ -78,6 +79,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
                 socketstatus.setText("已发送结果，断开连接");
             } else if (msg.what == 0x14) {
                 tb1text.setText(String.valueOf(tb1));
+                new beepPlayThread().start();
             } else if (msg.what == 0x15) {
                 tb3text.setText(String.valueOf(tb3));
 
@@ -168,45 +170,51 @@ public class Device2 extends Fragment implements View.OnClickListener {
                 while (beepnum < 2)
                 {
                     int bufferReadResult = audioRecord.read(buffer, 0, blockSize);
+                    int max0 = 0;
                     for (int i = 0; i < bufferReadResult && i < blockSize; i++)
-                        buffer_d[i] = (double)buffer[i] / 32768.0;
-                    int index = (int)((double)freqOfTone / rate * blockSize);
-                    double fftResult;
-                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
-                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
-                    double mean = 0;
-                    double max = 0;
-                    int idx = 0;
-                    for (int i = 0; i < result.length; i++)
-                    {
-                        double k = result[i].abs();
-                        mean += k;
-                        if (k > max)
-                        {
-                            max = k;
-                            idx = i;
-                        }
+                        //buffer_d[i] = (double)buffer[i] / 32768.0;
+                        max0 = max(max0, buffer[i]);
+//                    int index = (int)((double)freqOfTone / rate * blockSize);
+//                    double fftResult;
+//                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+//                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
+//                    double mean = 0;
+//                    double max = 0;
+//                    int idx = 0;
+//                    for (int i = 0; i < result.length; i++)
+//                    {
+//                        double k = result[i].abs();
+//                        mean += k;
+//                        if (k > max)
+//                        {
+//                            max = k;
+//                            idx = i;
+//                        }
+//
+//                    }
+//                    mean /= result.length;
+//                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
+                    //if (fftResult > 2 * mean)
 
-                    }
-                    mean /= result.length;
-                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
-                    if (fftResult > 2 * mean)
+                    Log.i("startcalc", "max num: " + max0);
+                    if (max0 > 120)
                     {
 
-                        Log.i("startcalc", "fftRes:" + fftResult);
-                        Log.i("startcalc", "mean:" + mean);
-                        Log.i("startcalc", "max:" + max);
-                        Log.i("startcalc", "max idx:" + idx);
+//                        Log.i("startcalc", "fftRes:" + fftResult);
+//                        Log.i("startcalc", "mean:" + mean);
+//                        Log.i("startcalc", "max:" + max);
+//                        Log.i("startcalc", "max idx:" + idx);
                         Log.i("startcalc", "Target Sound Detected");
                         if (beepnum == 0)
                         {
-                            tb1 = System.currentTimeMillis();
+                            tb1 = System.nanoTime();
                             Message msg = new Message();
                             msg.what = 0x14;
                             mHandler.sendMessage(msg);
+                            ++beepnum;
                         } else if (beepnum == 1) {
-                            tb3 = System.currentTimeMillis();
-                            if (tb3 - tb1 > 501) {
+                            tb3 = System.nanoTime();
+                            if (tb3 - tb1 > 3000000000l) {
                                 Message msg = new Message();
                                 msg.what = 0x15;
                                 mHandler.sendMessage(msg);
@@ -223,13 +231,13 @@ public class Device2 extends Fragment implements View.OnClickListener {
         @Override
         public void run() {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(5000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            int duration = 1; // seconds
+            double duration = 0.3; // seconds
             int sampleRate = 48000;
-            int numSamples = duration * sampleRate;
+            int numSamples = (int)(duration * sampleRate);
             double sample[] = new double[numSamples];
             byte generatedSnd[] = new byte[2 * numSamples];
             for (int i = 0; i < numSamples; ++i) {
@@ -276,8 +284,6 @@ public class Device2 extends Fragment implements View.OnClickListener {
             {
                 try {
                     //获取输入输出流
-                    Thread.sleep(5000);
-
 
                     OutputStream out = socket.getOutputStream();
                     OutputStreamWriter osr = new OutputStreamWriter(out); // 输出
@@ -289,8 +295,6 @@ public class Device2 extends Fragment implements View.OnClickListener {
                     socket.close();
 
                     mHandler.sendMessage(msg);
-                } catch (InterruptedException e) {
-                        e.printStackTrace();
                 } catch (SocketTimeoutException aa) {
                     msg.what = 0x12;
                     mHandler.sendMessage(msg);

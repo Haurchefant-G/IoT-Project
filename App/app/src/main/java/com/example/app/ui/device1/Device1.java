@@ -108,7 +108,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
             } else if (msg.what == 0x14) {
                 // ta1 ta3记录成功
                 t1 = ta3 - ta1;
-                t1text.setText(String.valueOf(t2));
+                t1text.setText(String.valueOf(t1));
                 if (t2 != 0)
                 {
                     resulttext.setText(String.valueOf(calcDistance()));
@@ -190,48 +190,56 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 while (beepnum < 2)
                 {
                     int bufferReadResult = audioRecord.read(buffer, 0, blockSize);
+                    int max0 = 0;
                     for (int i = 0; i < bufferReadResult && i < blockSize; i++)
-                        buffer_d[i] = (double)buffer[i] / 32768.0;
-                    int index = (int)((double)freqOfTone / rate * blockSize);
-                    double fftResult;
-                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
-                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
-                    double mean = 0;
-                    double max = 0;
-                    int idx = 0;
-                    for (int i = 0; i < result.length; i++)
-                    {
-                        double k = result[i].abs();
-                        mean += k;
-                        if (k > max)
-                        {
-                            max = k;
-                            idx = i;
-                        }
+                        //buffer_d[i] = (double)buffer[i] / 32768.0;
+                        max0 = max(max0, buffer[i]);
+//                    int index = (int)((double)freqOfTone / rate * blockSize);
+//                    double fftResult;
+//                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+//                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
+//                    double mean = 0;
+//                    double max = 0;
+//                    int idx = 0;
+//                    for (int i = 0; i < result.length; i++)
+//                    {
+//                        double k = result[i].abs();
+//                        mean += k;
+//                        if (k > max)
+//                        {
+//                            max = k;
+//                            idx = i;
+//                        }
+//
+//                    }
+//                    mean /= result.length;
+//                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
+                    //if (fftResult > 2 * mean)
 
-                    }
-                    mean /= result.length;
-                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
-                    if (fftResult > 2 * mean)
+                    Log.i("startcalc", "max num: " + max0);
+                    if (max0 > 120)
                     {
 
-                        Log.i("startcalc", "fftRes:" + fftResult);
-                        Log.i("startcalc", "mean:" + mean);
-                        Log.i("startcalc", "max:" + max);
-                        Log.i("startcalc", "max idx:" + idx);
+//                        Log.i("startcalc", "fftRes:" + fftResult);
+//                        Log.i("startcalc", "mean:" + mean);
+//                        Log.i("startcalc", "max:" + max);
+//                        Log.i("startcalc", "max idx:" + idx);
                         Log.i("startcalc", "Target Sound Detected");
                         if (beepnum == 0)
                         {
-                            ta1 = System.currentTimeMillis();
+                            ta1 = System.nanoTime();
+                            ++beepnum;
                         } else if (beepnum == 1) {
-                            ta3 = System.currentTimeMillis();
-                            if (ta3 - ta1 > 501)
+                            ta3 = System.nanoTime();
+                            if (ta3 - ta1 > 3000000000l)
+                            {
                                 ++beepnum;
+                                Message msg = new Message();
+                                msg.what = 0x14;
+                                mHandler.sendMessage(msg);
+                            }
                         }
                     }
-                    Message msg = new Message();
-                    msg.what = 0x14;
-                    mHandler.sendMessage(msg);
                 }
             }
         }.start();
@@ -241,13 +249,13 @@ public class Device1 extends Fragment implements View.OnClickListener {
         @Override
         public void run() {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            int duration = 1; // seconds
+            double duration = 0.3; // seconds
             int sampleRate = 48000;
-            int numSamples = duration * sampleRate;
+            int numSamples = (int) (duration * sampleRate);
             double sample[] = new double[numSamples];
             byte generatedSnd[] = new byte[2 * numSamples];
             for (int i = 0; i < numSamples; ++i) {
@@ -276,7 +284,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
 
     int calcDistance()
     {
-        int distance = (int) (340.0 * (t1 - t2) / 1000 / 2 + daa + dbb);
+        int distance = (int) ((340.0 * (t1 - t2) / 2) / 1000000) + daa + dbb;
         return distance;
     }
 
@@ -314,6 +322,8 @@ public class Device1 extends Fragment implements View.OnClickListener {
                             bff.close();
                             socket.close();
                             serverSocket.close();
+                        } catch (NullPointerException e) {
+
                         } catch (IOException e1) {
                             Message msg = new Message();
                             msg.what = 0x11;
