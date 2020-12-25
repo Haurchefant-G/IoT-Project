@@ -1,8 +1,14 @@
 package com.example.app.ui.device2;
 
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +23,11 @@ import androidx.lifecycle.ViewModelProviders;
 
 import com.example.app.R;
 
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -24,6 +35,8 @@ import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+
+import static org.apache.commons.math3.util.FastMath.max;
 
 public class Device2 extends Fragment implements View.OnClickListener {
 
@@ -34,13 +47,18 @@ public class Device2 extends Fragment implements View.OnClickListener {
     String serverip = null;
 
     boolean connected = false;
-    EditText serveriptext, tb1text, tb2text;
+    EditText serveriptext, tb1text, tb3text;
     TextView socketstatus;
     Button connectbutton;
 
+    private static final int rate = 48000;//采样率48000'
+    int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    int bufferSize = 0;
+
     long tb1, tb3;
 
-    public Handler myHandler = new Handler() {
+    public Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             if (msg.what == 0x11) {
@@ -55,7 +73,13 @@ public class Device2 extends Fragment implements View.OnClickListener {
             } else if (msg.what == 0x13) {
                 connected = false;
                 connectbutton.setEnabled(true);
-                socketstatus.setText("未连接");
+                socketstatus.setText("已发送结果，断开连接");
+            } else if (msg.what == 0x14) {
+                tb1text.setText(String.valueOf(tb1));
+            } else if (msg.what == 0x15) {
+                tb3text.setText(String.valueOf(tb3));
+
+                new SendResult(tb3 - tb1).start();
             }
         }
 
@@ -75,7 +99,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
         super.onActivityCreated(savedInstanceState);
         serveriptext = getActivity().findViewById(R.id.serveriptext);
         tb1text = getActivity().findViewById(R.id.tb1text);
-        tb2text = getActivity().findViewById(R.id.tb3text);
+        tb3text = getActivity().findViewById(R.id.tb3text);
         socketstatus = getActivity().findViewById(R.id.socketstatus);
         connectbutton = getActivity().findViewById(R.id.connectbutton);
         connectbutton.setOnClickListener(this);
@@ -113,21 +137,82 @@ public class Device2 extends Fragment implements View.OnClickListener {
                             {
                                 socket = new Socket();
                                 socket.connect(new InetSocketAddress(serverip, 30000), 1000); //端口号为30000
-                                myHandler.sendMessage(msg);
-
-                                new SendResult(1234).start();
+                                mHandler.sendMessage(msg);
                             }
                         } catch (SocketTimeoutException aa) {
                             msg.what = 0x12;
-                            myHandler.sendMessage(msg);
+                            mHandler.sendMessage(msg);
                         } catch (IOException e) {
                             msg.what = 0x12;
-                            myHandler.sendMessage(msg);
+                            mHandler.sendMessage(msg);
                             e.printStackTrace();
                         }
                     };
                 }.start();
                 break;
+        }
+    }
+
+    void startRecord() {
+        new Thread() {
+            public void run() {
+                bufferSize = AudioRecord.getMinBufferSize(rate, channelConfiguration, audioEncoding);
+                AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfiguration, audioEncoding, bufferSize);
+                byte[] buffer = new byte[bufferSize];
+                double[] buffer_d = new double[bufferSize];
+                audioRecord.startRecording();
+                // 开始进行第一次声音接收
+                int beepnum = 0;
+                while (beepnum < 2)
+                {
+                    int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                    for (int i = 0; i < bufferReadResult && i < bufferSize; i++)
+                        buffer_d[i] = (double)buffer[i] / 32768.0;
+                    int index = (int)((double)425 / rate * bufferReadResult);
+                    double fftResult;
+                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+                    Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
+                    int mean = 0;
+                    for (int i = 0; i < result.length; i++)
+                    {
+                        mean += result[i].abs();
+                    }
+                    mean /= result.length;
+                    fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
+                    if (fftResult > 2 * mean)
+                    {
+                        Log.i("startcalc", "Target Sound Detected");
+                        if (beepnum == 0)
+                        {
+                            tb1 = System.currentTimeMillis();
+                            Message msg = new Message();
+                            msg.what = 0x14;
+                            mHandler.sendMessage(msg);
+                        } else if (beepnum == 1) {
+                            tb3 = System.currentTimeMillis();
+                            if (tb3 - tb1 > 501) {
+                                Message msg = new Message();
+                                msg.what = 0x15;
+                                mHandler.sendMessage(msg);
+                                ++beepnum;
+                            }
+                        }
+                    }
+                }
+            }
+        }.start();
+    }
+
+    class beepPlayThread extends Thread{
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            toneGen1.startTone(ToneGenerator.TONE_CDMA_DIAL_TONE_LITE,500);
         }
     }
 
@@ -163,15 +248,15 @@ public class Device2 extends Fragment implements View.OnClickListener {
                     bufw.close();
                     socket.close();
 
-                    myHandler.sendMessage(msg);
+                    mHandler.sendMessage(msg);
                 } catch (InterruptedException e) {
                         e.printStackTrace();
                 } catch (SocketTimeoutException aa) {
                     msg.what = 0x12;
-                    myHandler.sendMessage(msg);
+                    mHandler.sendMessage(msg);
                 } catch (IOException e) {
                     msg.what = 0x12;
-                    myHandler.sendMessage(msg);
+                    mHandler.sendMessage(msg);
                     e.printStackTrace();
                 }
             }
