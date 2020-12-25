@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 import com.example.app.R;
 import com.example.app.Utils.WaveFileReader;
@@ -42,15 +43,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-
-import biz.source_code.dsp.filter.FilterCharacteristicsType;
-import biz.source_code.dsp.filter.FilterPassType;
-import biz.source_code.dsp.filter.IirFilter;
-import biz.source_code.dsp.filter.IirFilterCoefficients;
-import biz.source_code.dsp.filter.IirFilterDesignExstrom;
-import biz.source_code.dsp.filter.IirFilterDesignFisher;
+import java.util.List;
 
 import static org.apache.commons.math3.util.FastMath.max;
 import static org.apache.commons.math3.util.FastMath.min;
@@ -72,7 +68,16 @@ public class Receive extends Fragment implements View.OnClickListener {
     private static final int rate = 48000;//采样率48000
 
     private static final int step = 64;//滑动窗口为64个采样点
-    private static final int stepT = 32;//测试滑动窗口为32个采样点
+    private static final int stepT = 40;//测试滑动窗口为32个采样点
+
+    // 现场测试相关
+    int test_f1 = 4000;
+    int test_f2 = 6000;
+    int sampleRate = 48000;
+    double symbolDuration = 0.025;
+
+    List<Integer> onset;
+
 
 
     //格式：双声道
@@ -147,6 +152,7 @@ public class Receive extends Fragment implements View.OnClickListener {
             //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
             WaveFileReader reader = new WaveFileReader(fileName);
             int[] data = reader.getData()[0];
+            
             //傅里叶变换找到两个频率的强度
             int index_0 = (int)((double)f0 / rate * length);
             int index_1 = (int)((double)f1 / rate * length);
@@ -266,14 +272,33 @@ public class Receive extends Fragment implements View.OnClickListener {
             //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
             WaveFileReader reader = new WaveFileReader(fileName);
             int[] dataR = reader.getData()[0];
-            double[] data = new double[dataR.length];
-            //傅里叶变换找到两个频率的强度
-            int index_0 = (int)((double)4000 / rate * length);
-            int index_1 = (int)((double)6000 / rate * length);
 
-            // todo
-            int result_length = (dataR.length - length) / step + 1;
-            //int result_length = (data.length / 8 - length) / stepT + 1;
+            //int[] startRef = {2173721, 2517984, 4075113};
+            readContentCsv();
+            
+            Integer[] startRef = onset.toArray(new Integer[0]);
+
+            for (int onsetIndex = 0; onsetIndex < startRef.length; onsetIndex++){
+                double[] data;
+                if (startRef.length != onsetIndex+1)
+                    data = new double[startRef[onsetIndex+1]-startRef[onsetIndex]+1];
+                else
+                    data = new double[dataR.length-startRef[onsetIndex]+1];
+
+                for (int i = 0; i < data.length; i++){
+                    int deltaIndex = startRef[onsetIndex]-1 + i;
+                    if (deltaIndex >= dataR.length) break;
+                    data[i] = dataR[deltaIndex];
+                }
+
+
+                //傅里叶变换找到两个频率的强度
+                int index_0 = (int)((double)4000 / rate * length);
+                int index_1 = (int)((double)6000 / rate * length);
+
+                // todo
+                int result_length = (data.length - length) / stepT + 1;
+                //int result_length = (data.length / 8 - length) / stepT + 1;
 
 //            IirFilterCoefficients iirFilterCoefficients1;
 //            iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
@@ -285,130 +310,132 @@ public class Receive extends Fragment implements View.OnClickListener {
 ////                    5700.0 / 48000, 6300.0 / 48000);
 ////            IirFilter filter2 = new IirFilter(iirFilterCoefficients2);
 //
-            for (int i = 0; i<dataR.length; i++) {
-                //data[i] = max(filter1.step(dataR[i]), filter2.step(dataR[i]));
-                //data[i] = filter1.step(dataR[i]);
-                data[i] = dataR[i];
-            }
+//            for (int i = 0; i<dataR.length; i++) {
+//                //data[i] = max(filter1.step(dataR[i]), filter2.step(dataR[i]));
+//                //data[i] = filter1.step(dataR[i]);
+//                data[i] = dataR[i];
+//            }
 
-            double [][]fftResult = new double[result_length][2];
-            for(int i = 0; i < result_length; i++){
-                double[] inputData = new double[length];
-                for (int j = 0; j < length; j++){
-                    inputData[j] = (double)data[step * i + j] / 32767;
+                double [][]fftResult = new double[result_length][2];
+                for(int i = 0; i < result_length; i++){
+                    double[] inputData = new double[length];
+                    for (int j = 0; j < length; j++){
+                        inputData[j] = (double)data[stepT * i + j] / 32767;
+                    }
+                    FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+                    Complex[] result = fft.transform(inputData, TransformType.FORWARD);
+                    fftResult[i][0] = max(max(result[index_0 - 1].abs(), result[index_0].abs()), result[index_0 + 1].abs());
+                    fftResult[i][1] = max(max(result[index_1 - 1].abs(), result[index_1].abs()), result[index_1 + 1].abs());
                 }
-                FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
-                Complex[] result = fft.transform(inputData, TransformType.FORWARD);
-                fftResult[i][0] = max(max(result[index_0 - 1].abs(), result[index_0].abs()), result[index_0 + 1].abs());
-                fftResult[i][1] = max(max(result[index_1 - 1].abs(), result[index_1].abs()), result[index_1 + 1].abs());
-            }
 
 
-            double max0 = 0.0, max1 = 0.0; //辅助设置阈值
-            double base0 = 0.0, base1 = 0.0;
-            for(int i=0;i<fftResult.length;i++){
-                if (max0 < fftResult[i][0]) {
-                    max0 = fftResult[i][0];
+                double max0 = 0.0, max1 = 0.0; //辅助设置阈值
+                double base0 = 0.0, base1 = 0.0;
+                for(int i=0;i<fftResult.length;i++){
+                    if (max0 < fftResult[i][0]) {
+                        max0 = fftResult[i][0];
+                    }
+                    if (max1 < fftResult[i][1]) {
+                        max1 = fftResult[i][1];
+                    }
                 }
-                if (max1 < fftResult[i][1]) {
-                    max1 = fftResult[i][1];
-                }
-            }
-            base0 = max0 * 0.5;
-            base1 = max1 * 0.5;
+                base0 = max0 * 0.5;
+                base1 = max1 * 0.5;
 
-            Log.i("Info", "base0: " + base0 + ", " + "base1: " + base1);
+                //Log.i("Info", "base0: " + base0 + ", " + "base1: " + base1);
 
 //            if (base0 < base1) base1 = base0;
 //            else base0 = base1;
 
-            //寻找起始点
-            int start_length=0;
+                //寻找起始点
+                int start_length=0;
 
-            StringBuilder list = new StringBuilder("");
+                StringBuilder list = new StringBuilder("");
 
-            while (start_length < fftResult.length) {
-                int startIndex = start_length;
-                for (int i = startIndex; i < fftResult.length; i++) {
-                    if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
-                        start_length++;
-                    } else {
-                        break;
-                    }
-                }
-
-                //从起始点开始解码音频文件
-                int blocklength = 1200 / step;
-
-                for (int i = start_length; i < fftResult.length; i += blocklength) {
-                    int zeros = 0;
-                    int time0 = 0;
-                    int time1 = 0;
-                    for (int j = i; j < i + blocklength; j++) {
-                        if (j >= fftResult.length) break;
+                while (start_length < fftResult.length) {
+                    int startIndex = start_length;
+                    for (int i = startIndex; i < fftResult.length; i++) {
                         if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
-                            zeros += 1;
+                            start_length++;
                         } else {
-                            if (fftResult[j][0] > base0) { // && fftResult[j][0] > fftResult[j][1]
-                                time0++;
-                            } else if (fftResult[j][1] > base1) { // && fftResult[j][0] < fftResult[j][1]
-                                time1++;
-                            }
+                            break;
                         }
                     }
-                    if (zeros > blocklength / 3) {
-                        start_length = i;
-                        break;
-                    }
-                    if (time0 > time1) {
-                        list.append("0");
-                    } else {
-                        list.append("1");
+
+                    //从起始点开始解码音频文件
+                    int blocklength = 1200 / stepT;
+
+                    for (int i = start_length; i < fftResult.length; i += blocklength) {
+                        int zeros = 0;
+                        int time0 = 0;
+                        int time1 = 0;
+                        for (int j = i; j < i + blocklength; j++) {
+                            if (j >= fftResult.length) break;
+                            if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
+                                zeros += 1;
+                            } else {
+                                if (fftResult[j][0] > base0) { // && fftResult[j][0] > fftResult[j][1]
+                                    time0++;
+                                } else if (fftResult[j][1] > base1) { // && fftResult[j][0] < fftResult[j][1]
+                                    time1++;
+                                }
+                            }
+                        }
+                        if (zeros > blocklength / 3) {
+                            start_length = i;
+                            break;
+                        }
+                        if (time0 > time1) {
+                            list.append("0");
+                        } else {
+                            list.append("1");
+                        }
                     }
                 }
+
+                int idx = 0;
+                String msg_recv = list.toString();
+
+                Log.i("Info", "msg: " + msg_recv);
+                //Log.i("Info", "01s length: " + msg_recv.length());
+
+                int listSize = msg_recv.length();
+                String preamble = "01010101010101010101";
+                int seq_num = 0;
+                while (idx < listSize) {
+                    idx = msg_recv.indexOf(preamble, idx);
+
+                    if (idx == -1)
+                        break;
+                    seq_num++;
+
+                    Log.i("Info", "package " + seq_num + " start at: " + idx);
+
+                    idx += preamble.length();
+                    //TODO: 检查大小端问题
+
+                    String s_pkg_len = msg_recv.substring(idx, idx + 8);
+                    int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
+                    Log.i("Info", "package payload length: " + (pkg_len - 1));
+
+                    idx += 8;
+
+                    String bytes = msg_recv.substring(idx, idx + pkg_len - 1);
+                    idx += pkg_len;
+                    String frag = new String(bytes);
+                    finalRes.append(frag);
+                    String[] s_array = new String[pkg_len + 1];
+                    s_array[0] = String.valueOf(pkg_len - 1);
+                    for (int i = 1; i < pkg_len; i++)
+                        s_array[i] = String.valueOf(frag.charAt(i - 1));
+                    csvWriter.writeRecord(s_array);
+
+                    //TODO 测试用
+                    //break;
+                }
+                //textResult = finalRes.toString();
             }
 
-            int idx = 0;
-            String msg_recv = list.toString();
-
-            //Log.i("Info", "" + msg_recv);
-            Log.i("Info", "01s length: " + msg_recv.length());
-
-            int listSize = msg_recv.length();
-            String preamble = "01010101010101010101";
-            int seq_num = 0;
-            while (idx < listSize) {
-                idx = msg_recv.indexOf(preamble, idx);
-
-                if (idx == -1)
-                    break;
-                seq_num++;
-
-                Log.i("Info", "package " + seq_num + " start at: " + idx);
-
-                idx += preamble.length();
-                //TODO: 检查大小端问题
-
-                String s_pkg_len = msg_recv.substring(idx, idx + 8);
-                int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
-                Log.i("Info", "package payload length: " + (pkg_len - 1));
-
-                idx += 8;
-
-                String bytes = msg_recv.substring(idx, idx + pkg_len);
-                idx += pkg_len;
-                String frag = new String(bytes);
-                finalRes.append(frag);
-                String[] s_array = new String[pkg_len + 1];
-                s_array[0] = String.valueOf(pkg_len - 1);
-                for (int i = 1; i <= pkg_len; i++)
-                    s_array[i] = String.valueOf(frag.charAt(i - 1));
-                csvWriter.writeRecord(s_array);
-
-                //TODO 测试用
-                //break;
-            }
-            //textResult = finalRes.toString();
 
         }
         catch(NullPointerException | IOException e){
@@ -419,6 +446,43 @@ public class Receive extends Fragment implements View.OnClickListener {
             Looper.loop();
         }
         csvWriter.close();
+    }
+
+    public void readContentCsv()
+    {
+        onset = new ArrayList<>();
+        String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"content.csv";
+        try {
+            CsvReader reader = new CsvReader(CSV_FILE_PATH, ',');
+            String record[];
+            reader.readRecord();
+            record = reader.getValues();
+            sampleRate = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            symbolDuration = Double.parseDouble(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            test_f1 = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            test_f2 = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            // 忽略表头一行
+            reader.readHeaders();
+            String[] head = reader.getHeaders(); //获取表头
+            while(reader.readRecord())
+            {
+                onset.add(Integer.valueOf(reader.get(3)));
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     //开始录音
