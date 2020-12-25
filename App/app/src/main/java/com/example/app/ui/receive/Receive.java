@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProviders;
 
+import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
 import com.example.app.R;
 import com.example.app.Utils.WaveFileReader;
@@ -42,8 +43,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 import biz.source_code.dsp.filter.FilterCharacteristicsType;
 import biz.source_code.dsp.filter.FilterPassType;
@@ -73,6 +76,15 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     private static final int step = 64;//滑动窗口为64个采样点
     private static final int stepT = 32;//测试滑动窗口为32个采样点
+
+    // 现场测试相关
+    int test_f1 = 4000;
+    int test_f2 = 6000;
+    int sampleRate = 48000;
+    double symbolDuration = 0.025;
+
+    ArrayList<Integer> onset = new ArrayList<>();
+
 
 
     //格式：双声道
@@ -419,6 +431,42 @@ public class Receive extends Fragment implements View.OnClickListener {
             Looper.loop();
         }
         csvWriter.close();
+    }
+
+    public void readContentCsv()
+    {
+        String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"content.csv";
+        try {
+            CsvReader reader = new CsvReader(CSV_FILE_PATH, ',');
+            String record[];
+            reader.readRecord();
+            record = reader.getValues();
+            sampleRate = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            symbolDuration = Double.parseDouble(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            test_f1 = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            reader.readRecord();
+            record = reader.getValues();
+            test_f2 = Integer.parseInt(record[1]);
+            Log.i("Info", record[1]);
+            // 忽略表头一行
+            reader.readHeaders();
+            String[] head = reader.getHeaders(); //获取表头
+            while(reader.readRecord())
+            {
+                onset.add(Integer.valueOf(reader.get(3)));
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     //开始录音
