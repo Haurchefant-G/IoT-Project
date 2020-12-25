@@ -214,7 +214,7 @@ public class Device2 extends Fragment implements View.OnClickListener {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_SYSTEM, ToneGenerator.MAX_VOLUME);
             toneGen1.startTone(ToneGenerator.TONE_CDMA_DIAL_TONE_LITE,500);
         }
     }
