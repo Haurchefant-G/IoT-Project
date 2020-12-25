@@ -38,9 +38,9 @@ public class Send extends Fragment implements View.OnClickListener {
     TextView input, result;
 
     private static final int SamplingRate = 48000;//采样率
-    private static final int f0=4500;//频率0位4500Hz
-    private static final int f1=4750;//频率0位4750Hz
-    private static final int block_size=2880;//一个块2880采样点
+    private static final int f0=4000;//频率0位4000Hz
+    private static final int f1=6000;//频率0位6000Hz
+    private static final int block_size=1200;//一个块1200采样点
     private static final int max_length=1024;//包长度
     private static final int interval_length=4;//包间隔
     private static final int header_size = 8 + 8 + 10; //包头长度
@@ -190,7 +190,7 @@ public class Send extends Fragment implements View.OnClickListener {
         try {
             FileOutputStream out = null;
             out = new FileOutputStream(name);
-            long totalAudioLen = encode_message.length*2880*2;
+            long totalAudioLen = encode_message.length*block_size*2;
             long totalDataLen = totalAudioLen + 36;
             long longSampleRate = SamplingRate;
             int channels=1;

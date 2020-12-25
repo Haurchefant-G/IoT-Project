@@ -68,12 +68,12 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     String textResult = "";
 
-    private static final int f0=4500;//信号0为4500Hz
-    private static final int f1=4750;//信号1为4750Hz
+    private static final int f0=4000;//信号0为4000Hz
+    private static final int f1=6000;//信号1为6000Hz
     private static final int length = 1024;//一个傅里叶变换时间窗口1024
     private static final int rate = 48000;//采样率48000
 
-    private static final int step = 64;//滑动窗口为64个采样点
+    private static final int step = 40;//滑动窗口为40个采样点
     private static final int stepT = 40;//测试滑动窗口为32个采样点
 
     // 现场测试相关
@@ -81,6 +81,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     int test_f2 = 6000;
     int sampleRate = 48000;
     double symbolDuration = 0.025;
+    int blocksize = 1200;
 
     List<Integer> onset;
 
@@ -157,7 +158,25 @@ public class Receive extends Fragment implements View.OnClickListener {
         try {
             //WaveFileReader reader = new WaveFileReader(getContext().getExternalFilesDir("")+"/"+"receive.wav");
             WaveFileReader reader = new WaveFileReader(fileName);
-            int[] data = reader.getData()[0];
+            int[] dataR = reader.getData()[0];
+            double[] data = new double[dataR.length];
+
+            IirFilterCoefficients iirFilterCoefficients1;
+            iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+                    3500.0 / 48000, 6500.0 / 48000);
+            IirFilter filter1 = new IirFilter(iirFilterCoefficients1);
+
+//                IirFilterCoefficients iirFilterCoefficients2;
+//                iirFilterCoefficients2 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+//                        5700.0 / 48000, 6300.0 / 48000);
+//                IirFilter filter2 = new IirFilter(iirFilterCoefficients2);
+
+            for (int i = 0; i<dataR.length; i++) {
+                //data[i] = max(filter1.step(data[i]), filter2.step(data[i]));
+                data[i] = filter1.step(dataR[i]);
+                //data[i] = dataR[i];
+            }
+
             
             //傅里叶变换找到两个频率的强度
             int index_0 = (int)((double)f0 / rate * length);
@@ -187,9 +206,9 @@ public class Receive extends Fragment implements View.OnClickListener {
                     max1 = fftResult[i][1];
                 }
             }
-            base1 = max0*0.5;
-            base2 = max1*0.5;
-            Log.i("Info", "base1: " + base1 + ", " + "base2: " + base2);
+            base1 = max0 * 0.5;
+            base2 = max1 * 0.5;
+
 
             for(int i=0;i<fftResult.length;i++){
                 if(fftResult[i][0]<base1&&fftResult[i][1]<base2){
@@ -200,8 +219,10 @@ public class Receive extends Fragment implements View.OnClickListener {
                 }
             }
 
+            Log.i("Info", "base1: " + base1 + ", " + "base2: " + base2 + " startIndex: " + start_length + " fftresult length: " + fftResult.length);
+
             //从起始点开始解码音频文件
-            int blocklength = 2880 / step;
+            int blocklength = blocksize / step;
             StringBuilder list = new StringBuilder("");
             for(int i=start_length;i<fftResult.length;i+=blocklength){
                 int zeros=0;
@@ -215,18 +236,18 @@ public class Receive extends Fragment implements View.OnClickListener {
                         zeros+=1;
                     }
                     else {
-                        if (fftResult[j][0]>base1&&fftResult[j][0]>fftResult[j][1]){
+                        if (fftResult[j][0] > base1 ){ // && fftResult[j][0] > fftResult[j][1]
                             time0++;
                         }
-                        else if(fftResult[j][1]>base2&&fftResult[j][0]<fftResult[j][1]){
+                        else if(fftResult[j][1] > base2 ){ // && fftResult[j][0] < fftResult[j][1]
                             time1++;
                         }
                     }
                 }
-                if(zeros>blocklength/3){
+                if(zeros > blocklength / 2){
                     break;
                 }
-                if(time0>time1){
+                if(time0 > time1){
                     list.append("0");
                 }
                 else{
@@ -236,6 +257,8 @@ public class Receive extends Fragment implements View.OnClickListener {
 
             int idx = 0;
             String msg_recv = list.toString();
+            Log.i("Info", "msg: " + msg_recv);
+
             int listSize = msg_recv.length();
             String preamble = "10101010";
             while(idx < listSize)
@@ -753,7 +776,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                     @Override
                     public void run() {
                         //TODO 切换
-                        decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        decode(getContext().getExternalFilesDir("")+"/"+"test.wav");
                         //decode(getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
