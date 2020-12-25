@@ -176,7 +176,7 @@ public class Receive extends Fragment implements View.OnClickListener {
             }
             //寻找起始点
             int start_length=0;
-            double base = 2.0;
+            double base = 2.0, base1 = 0, base2 = 0;
 
             double max0 = 0.0, max1 = 0.0; //辅助设置阈值
             for(int i=0;i<fftResult.length;i++){
@@ -186,7 +186,13 @@ public class Receive extends Fragment implements View.OnClickListener {
                 if (max1 < fftResult[i][1]) {
                     max1 = fftResult[i][1];
                 }
-                if(fftResult[i][0]<base&&fftResult[i][1]<base){
+            }
+            base1 = max0*0.5;
+            base2 = max1*0.5;
+            Log.i("Info", "base1: " + base1 + ", " + "base2: " + base2);
+
+            for(int i=0;i<fftResult.length;i++){
+                if(fftResult[i][0]<base1&&fftResult[i][1]<base2){
                     start_length++;
                 }
                 else{
@@ -202,14 +208,17 @@ public class Receive extends Fragment implements View.OnClickListener {
                 int time0=0;
                 int time1=0;
                 for(int j=i;j<i+blocklength;j++) {
-                    if (fftResult[i][0] < base && fftResult[i][1] < base) {
+                    if (j >= fftResult.length) {
+                        break;
+                    }
+                    if (fftResult[i][0] < base1 && fftResult[i][1] < base2) {
                         zeros+=1;
                     }
                     else {
-                        if (fftResult[j][0]>base&&fftResult[j][0]>fftResult[j][1]){
+                        if (fftResult[j][0]>base1&&fftResult[j][0]>fftResult[j][1]){
                             time0++;
                         }
-                        else if(fftResult[j][1]>base&&fftResult[j][0]<fftResult[j][1]){
+                        else if(fftResult[j][1]>base2&&fftResult[j][0]<fftResult[j][1]){
                             time1++;
                         }
                     }
@@ -745,7 +754,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                     public void run() {
                         //TODO 切换
                         decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
-                        //decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
+                        //decode(getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
                         Looper.prepare();
@@ -760,8 +769,6 @@ public class Receive extends Fragment implements View.OnClickListener {
                 new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        //TODO 切换
-                        //decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
                         decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
