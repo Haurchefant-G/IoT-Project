@@ -3,17 +3,24 @@ package com.example.app.ui.device1;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.media.ToneGenerator;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,12 +32,21 @@ import androidx.lifecycle.ViewModelProviders;
 import com.example.app.R;
 import com.example.app.ui.send.SendViewModel;
 
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+
+import biz.source_code.dsp.transform.Dft;
+
+import static org.apache.commons.math3.util.FastMath.max;
 
 public class Device1 extends Fragment implements View.OnClickListener {
 
@@ -47,10 +63,25 @@ public class Device1 extends Fragment implements View.OnClickListener {
     Button startserver, startcalc;
 
 
-
     public static ServerSocket serverSocket = null;
     private String IP = "";
     String buffer = "";
+
+    private static final int rate = 48000;//采样率48000'
+    int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    int bufferSize = 0;
+    long t1 = 0;
+    long t2 = 0;
+
+    private final Thread beepPlayThread = new Thread() {
+      public void run()
+      {
+          ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+          toneGen1.startTone(ToneGenerator.TONE_CDMA_DIAL_TONE_LITE,500);
+      }
+    };
+
 
     public Handler mHandler = new Handler() {
         @Override
@@ -119,6 +150,7 @@ public class Device1 extends Fragment implements View.OnClickListener {
         }
     }
 
+
     private String getlocalip(){
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_WIFI_STATE)!=
                         PackageManager.PERMISSION_GRANTED
@@ -179,6 +211,38 @@ public class Device1 extends Fragment implements View.OnClickListener {
                 break;
 
             case R.id.startcalc:
+                new Thread() {
+                    public void run() {
+                        bufferSize = AudioRecord.getMinBufferSize(rate, channelConfiguration, audioEncoding);
+                        AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, rate, channelConfiguration, audioEncoding, bufferSize);
+                        byte[] buffer = new byte[bufferSize];
+                        double[] buffer_d = new double[bufferSize];
+                        audioRecord.startRecording();
+                        // 开始进行第一次声音接收
+                        while (true)
+                        {
+                            int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                            for (int i = 0; i < bufferReadResult && i < bufferSize; i++)
+                                buffer_d[i] = (double)buffer[i] / 32768.0;
+                            int index = (int)((double)6000 / rate * bufferReadResult);
+                            double fftResult;
+                            FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
+                            Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
+                            int mean = 0;
+                            for (int i = 0; i < result.length; i++)
+                            {
+                                mean += result[i].abs();
+                            }
+                            mean /= result.length;
+                            fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
+                            if (fftResult > 2 * mean)
+                            {
+                                Log.i("startcalc", "Target Sound Detected");
+                                break;
+                            }
+                        }
+                    }
+                }.start();
                 break;
 
 
