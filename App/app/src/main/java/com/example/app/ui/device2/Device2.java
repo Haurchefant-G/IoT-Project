@@ -174,10 +174,19 @@ public class Device2 extends Fragment implements View.OnClickListener {
                     double fftResult;
                     FastFourierTransformer fft = new FastFourierTransformer(DftNormalization.STANDARD);
                     Complex[] result = fft.transform(buffer_d, TransformType.FORWARD);
-                    int mean = 0;
+                    double mean = 0;
+                    double max = 0;
+                    int idx = 0;
                     for (int i = 0; i < result.length; i++)
                     {
-                        mean += result[i].abs();
+                        double k = result[i].abs();
+                        mean += k;
+                        if (k > max)
+                        {
+                            max = k;
+                            idx = i;
+                        }
+
                     }
                     mean /= result.length;
                     fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
@@ -186,6 +195,8 @@ public class Device2 extends Fragment implements View.OnClickListener {
 
                         Log.i("startcalc", "fftRes:" + fftResult);
                         Log.i("startcalc", "mean:" + mean);
+                        Log.i("startcalc", "max:" + max);
+                        Log.i("startcalc", "max idx:" + idx);
                         Log.i("startcalc", "Target Sound Detected");
                         if (beepnum == 0)
                         {
