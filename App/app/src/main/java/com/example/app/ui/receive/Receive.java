@@ -206,8 +206,8 @@ public class Receive extends Fragment implements View.OnClickListener {
                     max1 = fftResult[i][1];
                 }
             }
-            base1 = max0 * 0.5;
-            base2 = max1 * 0.5;
+            base1 = max0 * 0.24;
+            base2 = max1 * 0.24;
 
 
             for(int i=0;i<fftResult.length;i++){
@@ -236,14 +236,15 @@ public class Receive extends Fragment implements View.OnClickListener {
                         zeros+=1;
                     }
                     else {
-                        if (fftResult[j][0] > base1 ){ // && fftResult[j][0] > fftResult[j][1]
+                        if (fftResult[j][0] > base1 && fftResult[j][0] > fftResult[j][1]){ //
                             time0++;
                         }
-                        else if(fftResult[j][1] > base2 ){ // && fftResult[j][0] < fftResult[j][1]
+                        else if(fftResult[j][1] > base2 && fftResult[j][0] < fftResult[j][1]){ //
                             time1++;
                         }
                     }
                 }
+
                 if(zeros > blocklength / 2){
                     break;
                 }
@@ -257,7 +258,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
             int idx = 0;
             String msg_recv = list.toString();
-            Log.i("Info", "msg: " + msg_recv);
+            Log.i("Info", "msg: " + msg_recv.length());
 
             int listSize = msg_recv.length();
             String preamble = "10101010";
@@ -273,6 +274,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                 idx += 8;
                 String s_pkg_len = msg_recv.substring(idx, idx + 10);
                 int pkg_len = Integer.parseInt(s_pkg_len, 2) + 1;
+                Log.i("Info", "payload len: " + (pkg_len - 1));
                 idx += 10;
 
                 byte[] bytes = new byte[pkg_len / 8];
