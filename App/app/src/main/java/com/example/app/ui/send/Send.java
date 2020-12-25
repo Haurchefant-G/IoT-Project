@@ -39,8 +39,8 @@ public class Send extends Fragment implements View.OnClickListener {
 
     private static final int SamplingRate = 48000;//采样率
     private static final int f0=4000;//频率0位4000Hz
-    private static final int f1=6000;//频率0位6000Hz
-    private static final int block_size=1200;//一个块1200采样点
+    private static final int f1=5000;//频率0位6000Hz
+    private static final int block_size=2400;//一个块1200采样点
     private static final int max_length=1024;//包长度
     private static final int interval_length=4;//包间隔
     private static final int header_size = 8 + 8 + 10; //包头长度

@@ -69,7 +69,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     String textResult = "";
 
     private static final int f0=4000;//信号0为4000Hz
-    private static final int f1=6000;//信号1为6000Hz
+    private static final int f1=5000;//信号1为5000Hz
     private static final int length = 1024;//一个傅里叶变换时间窗口1024
     private static final int rate = 48000;//采样率48000
 
@@ -81,7 +81,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     int test_f2 = 6000;
     int sampleRate = 48000;
     double symbolDuration = 0.025;
-    int blocksize = 1200;
+    int blocksize = 2400;
 
     List<Integer> onset;
 
@@ -163,7 +163,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
             IirFilterCoefficients iirFilterCoefficients1;
             iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
-                    3500.0 / 48000, 6500.0 / 48000);
+                    3500.0 / 48000, 5500.0 / 48000);
             IirFilter filter1 = new IirFilter(iirFilterCoefficients1);
 
 //                IirFilterCoefficients iirFilterCoefficients2;
@@ -206,8 +206,8 @@ public class Receive extends Fragment implements View.OnClickListener {
                     max1 = fftResult[i][1];
                 }
             }
-            base1 = max0 * 0.24;
-            base2 = max1 * 0.24;
+            base1 = max0 * 0.12;
+            base2 = max1 * 0.12;
 
 
             for(int i=0;i<fftResult.length;i++){
@@ -778,7 +778,7 @@ public class Receive extends Fragment implements View.OnClickListener {
                     @Override
                     public void run() {
                         //TODO 切换
-                        decode(getContext().getExternalFilesDir("")+"/"+"test.wav");
+                        decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
                         //decode(getContext().getExternalFilesDir("")+"/AudioProject/encoding/message.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
