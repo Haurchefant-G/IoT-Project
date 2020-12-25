@@ -48,13 +48,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-import biz.source_code.dsp.filter.FilterCharacteristicsType;
-import biz.source_code.dsp.filter.FilterPassType;
-import biz.source_code.dsp.filter.IirFilter;
-import biz.source_code.dsp.filter.IirFilterCoefficients;
-import biz.source_code.dsp.filter.IirFilterDesignExstrom;
-import biz.source_code.dsp.filter.IirFilterDesignFisher;
-
 import static org.apache.commons.math3.util.FastMath.max;
 import static org.apache.commons.math3.util.FastMath.min;
 
@@ -83,7 +76,7 @@ public class Receive extends Fragment implements View.OnClickListener {
     int sampleRate = 48000;
     double symbolDuration = 0.025;
 
-    ArrayList<Integer> onset = new ArrayList<>();
+    List<Integer> onset;
 
 
 
@@ -280,7 +273,10 @@ public class Receive extends Fragment implements View.OnClickListener {
             WaveFileReader reader = new WaveFileReader(fileName);
             int[] dataR = reader.getData()[0];
 
-            int[] startRef = {2173721, 2517984, 4075113};
+            //int[] startRef = {2173721, 2517984, 4075113};
+            readContentCsv();
+            
+            Integer[] startRef = onset.toArray(new Integer[0]);
 
             for (int onsetIndex = 0; onsetIndex < startRef.length; onsetIndex++){
                 double[] data;
@@ -454,6 +450,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     public void readContentCsv()
     {
+        onset = new ArrayList<>();
         String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"content.csv";
         try {
             CsvReader reader = new CsvReader(CSV_FILE_PATH, ',');
