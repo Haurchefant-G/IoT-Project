@@ -48,6 +48,12 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
+import biz.source_code.dsp.filter.FilterCharacteristicsType;
+import biz.source_code.dsp.filter.FilterPassType;
+import biz.source_code.dsp.filter.IirFilter;
+import biz.source_code.dsp.filter.IirFilterCoefficients;
+import biz.source_code.dsp.filter.IirFilterDesignFisher;
+
 import static org.apache.commons.math3.util.FastMath.max;
 import static org.apache.commons.math3.util.FastMath.min;
 
@@ -265,6 +271,10 @@ public class Receive extends Fragment implements View.OnClickListener {
     //测试用函数
     public void decode2(String fileName)
     {
+        readContentCsv();
+
+        Log.i("Info", "start decode");
+
         String CSV_FILE_PATH = getContext().getExternalFilesDir("")+"/"+"res.csv";
         CsvWriter csvWriter = new CsvWriter(CSV_FILE_PATH,',', Charset.forName("GBK"));
         StringBuilder finalRes = new StringBuilder("");
@@ -274,9 +284,10 @@ public class Receive extends Fragment implements View.OnClickListener {
             int[] dataR = reader.getData()[0];
 
             //int[] startRef = {2173721, 2517984, 4075113};
-            readContentCsv();
+
             
             Integer[] startRef = onset.toArray(new Integer[0]);
+            int seq_num = 0;
 
             for (int onsetIndex = 0; onsetIndex < startRef.length; onsetIndex++){
                 double[] data;
@@ -300,21 +311,21 @@ public class Receive extends Fragment implements View.OnClickListener {
                 int result_length = (data.length - length) / stepT + 1;
                 //int result_length = (data.length / 8 - length) / stepT + 1;
 
-//            IirFilterCoefficients iirFilterCoefficients1;
-//            iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
-//                    3700.0 / 48000, 6300.0 / 48000);
-//            IirFilter filter1 = new IirFilter(iirFilterCoefficients1);
-//
-////            IirFilterCoefficients iirFilterCoefficients2;
-////            iirFilterCoefficients2 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
-////                    5700.0 / 48000, 6300.0 / 48000);
-////            IirFilter filter2 = new IirFilter(iirFilterCoefficients2);
-//
-//            for (int i = 0; i<dataR.length; i++) {
-//                //data[i] = max(filter1.step(dataR[i]), filter2.step(dataR[i]));
-//                //data[i] = filter1.step(dataR[i]);
-//                data[i] = dataR[i];
-//            }
+                IirFilterCoefficients iirFilterCoefficients1;
+                iirFilterCoefficients1 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+                        3700.0 / 48000, 6300.0 / 48000);
+                IirFilter filter1 = new IirFilter(iirFilterCoefficients1);
+
+//                IirFilterCoefficients iirFilterCoefficients2;
+//                iirFilterCoefficients2 = IirFilterDesignFisher.design(FilterPassType.bandpass, FilterCharacteristicsType.butterworth, 5, 0,
+//                        5700.0 / 48000, 6300.0 / 48000);
+//                IirFilter filter2 = new IirFilter(iirFilterCoefficients2);
+
+                for (int i = 0; i<data.length; i++) {
+                    //data[i] = max(filter1.step(data[i]), filter2.step(data[i]));
+                    data[i] = filter1.step(data[i]);
+                    //data[i] = dataR[i];
+                }
 
                 double [][]fftResult = new double[result_length][2];
                 for(int i = 0; i < result_length; i++){
@@ -365,12 +376,20 @@ public class Receive extends Fragment implements View.OnClickListener {
                     //从起始点开始解码音频文件
                     int blocklength = 1200 / stepT;
 
-                    for (int i = start_length; i < fftResult.length; i += blocklength) {
+                    for (int i = start_length; i <= fftResult.length; i += blocklength) {
+                        if (i == fftResult.length) {
+                            start_length = i;
+                            break;
+                        }
+
                         int zeros = 0;
                         int time0 = 0;
                         int time1 = 0;
                         for (int j = i; j < i + blocklength; j++) {
-                            if (j >= fftResult.length) break;
+                            if (j >= fftResult.length) {
+                                start_length = j;
+                                break;
+                            }
                             if (fftResult[i][0] < base0 && fftResult[i][1] < base1) {
                                 zeros += 1;
                             } else {
@@ -401,7 +420,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
                 int listSize = msg_recv.length();
                 String preamble = "01010101010101010101";
-                int seq_num = 0;
+
                 while (idx < listSize) {
                     idx = msg_recv.indexOf(preamble, idx);
 
@@ -422,13 +441,15 @@ public class Receive extends Fragment implements View.OnClickListener {
 
                     String bytes = msg_recv.substring(idx, idx + pkg_len - 1);
                     idx += pkg_len;
-                    String frag = new String(bytes);
+                    String frag = bytes;
                     finalRes.append(frag);
                     String[] s_array = new String[pkg_len + 1];
                     s_array[0] = String.valueOf(pkg_len - 1);
                     for (int i = 1; i < pkg_len; i++)
                         s_array[i] = String.valueOf(frag.charAt(i - 1));
                     csvWriter.writeRecord(s_array);
+
+                    //Log.i("Info", "s array: " + s_array[0] + s_array[1]);
 
                     //TODO 测试用
                     //break;
@@ -445,6 +466,7 @@ public class Receive extends Fragment implements View.OnClickListener {
             showToast("Error: Cannot get the path.");
             Looper.loop();
         }
+
         csvWriter.close();
     }
 
@@ -478,6 +500,7 @@ public class Receive extends Fragment implements View.OnClickListener {
             {
                 onset.add(Integer.valueOf(reader.get(3)));
             }
+            reader.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
