@@ -122,16 +122,25 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
-                    android:layout_marginBottom="20dp"
                     android:ems="10"
                     android:gravity="start|top"
                     android:inputType="none"
                     android:singleLine="false"
                     android:textIsSelectable="true"
-                    app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/decodeLabel" />
+
+                <Button
+                    android:id="@+id/decodeButton2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:enabled="true"
+                    android:text="DECODE2"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/decodeText" />
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
 

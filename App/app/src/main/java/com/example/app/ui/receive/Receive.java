@@ -61,7 +61,7 @@ public class Receive extends Fragment implements View.OnClickListener {
 
     private Toast mToast;
 
-    Button start, stop, decodeButton, play;
+    Button start, stop, decodeButton, decode2Button, play;
     TextView receiveText, result;
 
     String textResult = "";
@@ -128,12 +128,14 @@ public class Receive extends Fragment implements View.OnClickListener {
         start = getActivity().findViewById(R.id.startReceive);
         stop = getActivity().findViewById(R.id.stopReceive);
         decodeButton = getActivity().findViewById(R.id.decodeButton);
+        decode2Button = getActivity().findViewById(R.id.decodeButton2);
         play = getActivity().findViewById(R.id.playRecord);
         receiveText = getActivity().findViewById(R.id.receiveText);
         result = getActivity().findViewById(R.id.decodeText);
         start.setOnClickListener(this);
         stop.setOnClickListener(this);
         decodeButton.setOnClickListener(this);
+        decode2Button.setOnClickListener(this);
         //decodeButton.setEnabled(true);
         play.setOnClickListener(this);
     }
@@ -655,8 +657,8 @@ public class Receive extends Fragment implements View.OnClickListener {
                     @Override
                     public void run() {
                         //TODO 切换
-                        //decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
-                        decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
+                        decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        //decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
                         Message msg = new Message();
                         handle.sendMessage(msg);
                         Looper.prepare();
@@ -666,6 +668,21 @@ public class Receive extends Fragment implements View.OnClickListener {
                 });
                 thread.start();
                 //pausePlayer(v);
+                break;
+            case R.id.decodeButton2:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        //TODO 切换
+                        //decode(getContext().getExternalFilesDir("")+"/"+"receive.wav");
+                        decode2(getContext().getExternalFilesDir("")+"/"+"res.wav");
+                        Message msg = new Message();
+                        handle.sendMessage(msg);
+                        Looper.prepare();
+                        showToast("decode完成");
+                        Looper.loop();
+                    }
+                }).start();
                 break;
             case R.id.playRecord:
                 playWav();

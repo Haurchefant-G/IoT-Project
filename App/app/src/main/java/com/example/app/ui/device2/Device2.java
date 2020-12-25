@@ -17,10 +17,10 @@ import androidx.lifecycle.ViewModelProviders;
 
 import com.example.app.R;
 
-import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -32,18 +32,13 @@ public class Device2 extends Fragment implements View.OnClickListener {
 
     Socket socket = null;
     String serverip = null;
-    String buffer = "";
-    TextView txt1;
-    Button send;
-    EditText ed1;
-    String geted1;
-
-    Boolean receive = false;
 
     boolean connected = false;
     EditText serveriptext, tb1text, tb2text;
     TextView socketstatus;
     Button connectbutton;
+
+    long tb1, tb3;
 
     public Handler myHandler = new Handler() {
         @Override
@@ -53,7 +48,14 @@ public class Device2 extends Fragment implements View.OnClickListener {
                 connectbutton.setEnabled(false);
                 socketstatus.setText("已连接，等待接收声音信号");
             } else if (msg.what == 0x12) {
+                connected = false;
+                connectbutton.setEnabled(true);
                 socketstatus.setText("连接失败！请重新连接");
+                socket = null;
+            } else if (msg.what == 0x13) {
+                connected = false;
+                connectbutton.setEnabled(true);
+                socketstatus.setText("未连接");
             }
         }
 
@@ -73,8 +75,24 @@ public class Device2 extends Fragment implements View.OnClickListener {
         super.onActivityCreated(savedInstanceState);
         serveriptext = getActivity().findViewById(R.id.serveriptext);
         tb1text = getActivity().findViewById(R.id.tb1text);
-        tb2text = getActivity().findViewById(R.id.tb2text);
+        tb2text = getActivity().findViewById(R.id.tb3text);
         socketstatus = getActivity().findViewById(R.id.socketstatus);
+        connectbutton = getActivity().findViewById(R.id.connectbutton);
+        connectbutton.setOnClickListener(this);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (socket != null)
+        {
+            try {
+                socket.close();
+                socket = null;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -96,11 +114,15 @@ public class Device2 extends Fragment implements View.OnClickListener {
                                 socket = new Socket();
                                 socket.connect(new InetSocketAddress(serverip, 30000), 1000); //端口号为30000
                                 myHandler.sendMessage(msg);
+
+                                new SendResult(1234).start();
                             }
                         } catch (SocketTimeoutException aa) {
                             msg.what = 0x12;
                             myHandler.sendMessage(msg);
                         } catch (IOException e) {
+                            msg.what = 0x12;
+                            myHandler.sendMessage(msg);
                             e.printStackTrace();
                         }
                     };
@@ -111,13 +133,10 @@ public class Device2 extends Fragment implements View.OnClickListener {
 
     class SendResult extends Thread {
 
-        public String t1, t2;
+        public long tb;
 
-        public OutputStream ou;
-
-        public SendResult(String time1, String time2) {
-            t1 = time1;
-            t2 = time2;
+        public SendResult(long t) {
+            tb = t;
         }
 
         @Override
@@ -130,42 +149,31 @@ public class Device2 extends Fragment implements View.OnClickListener {
 
             if (socket != null)
             {
+                try {
+                    //获取输入输出流
+                    Thread.sleep(5000);
 
-            }
-            try {
-                //连接服务器 并设置连接超时为1秒
-                socket = new Socket();
-                socket.connect(new InetSocketAddress("192.168.1.104", 30000), 1000); //端口号为30000
-                //获取输入输出流
-                OutputStream ou = socket.getOutputStream();
-                BufferedReader bff = new BufferedReader(new InputStreamReader(
-                        socket.getInputStream()));
-                //读取发来服务器信息
-                String line = null;
-                buffer="";
-                while ((line = bff.readLine()) != null) {
-                    buffer = line + buffer;
+
+                    OutputStream out = socket.getOutputStream();
+                    OutputStreamWriter osr = new OutputStreamWriter(out); // 输出
+                    BufferedWriter bufw = new BufferedWriter(osr); // 缓冲
+
+                    bufw.write(String.valueOf(tb));
+                    bufw.flush();
+                    bufw.close();
+                    socket.close();
+
+                    myHandler.sendMessage(msg);
+                } catch (InterruptedException e) {
+                        e.printStackTrace();
+                } catch (SocketTimeoutException aa) {
+                    msg.what = 0x12;
+                    myHandler.sendMessage(msg);
+                } catch (IOException e) {
+                    msg.what = 0x12;
+                    myHandler.sendMessage(msg);
+                    e.printStackTrace();
                 }
-
-                //向服务器发送信息
-                //ou.write(txt1.getBytes("gbk"));
-                ou.flush();
-                bundle.putString("msg", buffer.toString());
-                msg.setData(bundle);
-                //发送消息 修改UI线程中的组件
-                myHandler.sendMessage(msg);
-                //关闭各种输入输出流
-                bff.close();
-                ou.close();
-                socket.close();
-            } catch (SocketTimeoutException aa) {
-                //连接超时 在UI界面显示消息
-                bundle.putString("msg", "服务器连接失败！请检查网络是否打开");
-                msg.setData(bundle);
-                //发送消息 修改UI线程中的组件
-                myHandler.sendMessage(msg);
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }

@@ -24,6 +24,10 @@ public class MainActivity extends AppCompatActivity {
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)!=
                         PackageManager.PERMISSION_GRANTED ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE)!=
+                        PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_NETWORK_STATE)!=
+                        PackageManager.PERMISSION_GRANTED ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.INTERNET)!=
                         PackageManager.PERMISSION_GRANTED
         )
         {
@@ -32,7 +36,9 @@ public class MainActivity extends AppCompatActivity {
                     new String[]{Manifest.permission.RECORD_AUDIO,
                             Manifest.permission.WRITE_EXTERNAL_STORAGE,
                             Manifest.permission.READ_EXTERNAL_STORAGE,
-                            Manifest.permission.ACCESS_WIFI_STATE}, 0);
+                            Manifest.permission.ACCESS_WIFI_STATE,
+                            Manifest.permission.ACCESS_NETWORK_STATE,
+                            Manifest.permission.INTERNET,}, 0);
         }
     }
 
