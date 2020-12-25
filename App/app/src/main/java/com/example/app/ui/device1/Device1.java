@@ -203,6 +203,8 @@ public class Device1 extends Fragment implements View.OnClickListener {
                     fftResult = max(max(result[index - 1].abs(), result[index].abs()), result[index + 1].abs());
                     if (fftResult > 2 * mean)
                     {
+                        Log.i("startcalc", "fftRes:" + fftResult);
+                        Log.i("startcalc", "mean:" + mean);
                         Log.i("startcalc", "Target Sound Detected");
                         if (beepnum == 0)
                         {
