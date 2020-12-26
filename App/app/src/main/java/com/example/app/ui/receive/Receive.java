@@ -455,7 +455,12 @@ public class Receive extends Fragment implements View.OnClickListener {
                 int listSize = msg_recv.length();
                 String preamble = "01010101010101010101";
 
-                while (idx < listSize) {
+                if (msg_recv.indexOf(preamble, idx)==-1) {
+                    String[] s_array = new String[1];
+                    s_array[0] = String.valueOf(0);
+                    csvWriter.writeRecord(s_array);
+                }
+                else while (idx < listSize) {
                     idx = msg_recv.indexOf(preamble, idx);
 
                     if (idx == -1)
